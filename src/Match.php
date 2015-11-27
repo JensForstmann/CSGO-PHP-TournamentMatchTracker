@@ -8,11 +8,6 @@ namespace TMT;
  */
 class Match {
     /**
-     * @var UdpLogReceiver
-     */
-    private $udp_log_receiver;
-
-    /**
      * @var Rcon
      */
     private $rcon;
@@ -24,7 +19,19 @@ class Match {
     private $id;
 
     /**
-     * The url to call after match end to submit the result.
+     * Game server ip address.
+     * @var string
+     */
+    private $ip;
+
+    /**
+     * Game server port.
+     * @var int
+     */
+    private $port;
+
+    /**
+     * The url for updating the tournament system.
      * @var string
      */
     private $url;
@@ -109,37 +116,41 @@ class Match {
 
     /**
      * Constructs a match to observe and control it.
-     * @param int $id Match id, is used for logging purposes and to submit the result.
+     * @param string $udp_log_ip_port IP:port of the udp log receiver.
+     * @param string[] $map_pool All allowed maps for agreement or banning.
+     * @param string $default_map The default map.
+     * @param int $match_id Match id, is used for logging purposes and to submit the result.
+     * @param int $team1_id The id of the first team.
+     * @param string $team1_name The name of the first team.
+     * @param int $team2_id THe id of the second team.
+     * @param string $team2_name The name of the second team.
      * @param string $ip The ip address of the gameserver.
      * @param int $port The port of the gameserver.
      * @param string $rcon The rcon password of the gameserver.
+     * @param string $password The gameserver join password that will be set.
      * @param string $config The config file to load.
+     * @param string $pickmode One of: 'bo1', 'bo1random', 'agree'
      * @param string $url The url to call after match end to submit the result.
-     * @param string $teamname1 The name of the first team.
-     * @param string $teamname2 The name of the second team.
-     * @param string $default_map The default map.
+     * @param string $match_end One of: 'kick', 'quit', 'none'
      */
-    public function __construct($id, $ip, $port, $rcon, $config, $url, $teamname1, $teamname2, $default_map) {
-        $this->id = $id;
-        $this->teamname = ['CT' => $teamname1, 'TERRORIST' => $teamname2];
+    public function __construct($udp_log_ip_port, $map_pool, $default_map, $match_id, $team1_id, $team1_name, $team2_id, $team2_name, $ip, $port, $rcon, $password, $config, $pickmode, $url, $match_end) {
+        // @todo set all internal fields
+        $this->match_id = $match_id;
+        $this->teamname = ['CT' => $team1_name, 'TERRORIST' => $team2_name];
         $this->default_map = $default_map;
         $this->config = $config;
         $this->url = $url;
         $this->match_status = self::WARMUP;
+        $this->ip = $ip;
+        $this->port = $port;
 
         $this->rcon = new Rcon($ip, $port, $rcon);
-
-        $this->udp_log_receiver = new UdpLogReceiver($ip, $port);
-
-        // @todo use only one udp logreceiver with static port
-        $udp_log_receiver_ip = getHostByName(getHostName()); // @todo is that reliable?
-        $udp_log_receiver_port = $this->udp_log_receiver->getPort();
 
         $this->rcon('mp_logdetail 0');
         $this->rcon('sv_logecho 0');
         $this->rcon('sv_logfile 0');
         $this->rcon('logaddress_delall');
-        $this->rcon('logaddress_add ' . $udp_log_receiver_ip . ':' . $udp_log_receiver_port);
+        $this->rcon('logaddress_add ' . $udp_log_ip_port);
         $this->rcon('log on');
         $this->rcon('mp_teamname_1 ' . $this->teamname['CT']); // @todo check for security issues
         $this->rcon('mp_teamname_2 ' .  $this->teamname['TERRORIST']); // @todo check for security issues
@@ -154,6 +165,22 @@ class Match {
      */
     public function getMatchStatus() {
         return $this->match_status;
+    }
+
+    /**
+     * Returns ip:port.
+     * @return string
+     */
+    public function getIpPort() {
+        return $this->ip . ':' . $this->port;
+    }
+
+    /**
+     * Returns match id.
+     * @return int
+     */
+    public function getMatchId() {
+        return $this->match_id;
     }
 
     /**
@@ -327,6 +354,7 @@ class Match {
                 $this->sayPeriodicMessage();
                 $this->sendResult($ct_score, $t_score);
                 // @todo kick all player
+                // @todo disable udp logging via rcon
             }
         }
     }
@@ -334,10 +362,10 @@ class Match {
     /**
      * Do all the stuff that has to be done.
      * This function should be called frequently.
+     * @param string[] Array with udp log packets
      */
-    public function doWork() {
+    public function doWork($packets) {
         // react to things happened on the server
-        $packets = $this->udp_log_receiver->getNewPackets();
         foreach ($packets as $packet) {
             $this->decodePacket($packet);
         }

@@ -20,7 +20,7 @@ class Log {
      */
     private static function writeLine($string) {
         if (!is_resource(self::$fp)) {
-            self::$fp = fopen('tmt.log', 'a');
+            self::$fp = fopen(__DIR__ . '/../tmt.log', 'a');
         }
         fwrite(self::$fp, date('Y-m-d H:i:s') . ' | ' . $string . "\n");
         echo date('Y-m-d H:i:s') . ' | ' . $string . PHP_EOL;

@@ -8,19 +8,10 @@ namespace TMT;
  */
 class UdpLogReceiver {
     /**
-     * @var string
-     */
-    private $gameserver_ip_port;
-
-    /**
+     * UDP listening socket
      * @var resource
      */
     private $fp;
-
-    /**
-     * @var int
-     */
-    private $port;
 
     /**
      * Constructs the UDP Log Receiver.
@@ -32,9 +23,7 @@ class UdpLogReceiver {
      * @throws \Exception
      */
     public function __construct($ip, $port) {
-        $this->gameserver_ip_port = $ip . ':' . $port;
-
-        $fp = stream_socket_server('udp://0.0.0.0:0', $errno, $errstr, STREAM_SERVER_BIND);
+        $fp = stream_socket_server('udp://' . $ip . ':' . $port, $errno, $errstr, STREAM_SERVER_BIND);
 
         if ($fp === false) {
             throw new \Exception('Error creating ' . __CLASS__ . ': ' . $errstr . ' (' . $errno . ')');
@@ -44,23 +33,12 @@ class UdpLogReceiver {
             throw new \Exception('Error setting stream timeout for ' . __CLASS__);
         }
 
-        $this->port = (int) explode(':', stream_socket_get_name($fp, false))[1];
-
         $this->fp = $fp;
     }
 
     /**
-     * Returns the port of the udp socket.
-     * @return int
-     */
-    public function getPort() {
-        return $this->port;
-    }
-
-    /**
-     * Returns an array of all incoming packets. Drops all packets which are not from the gameserver (checks if
-     * origin ip and port matches to the config setting).
-     * @return array
+     * Returns an array of all incoming packets.
+     * @return string[] key = origin ip:port, value = payload data
      */
     public function getNewPackets() {
         $empty = [];
@@ -69,15 +47,14 @@ class UdpLogReceiver {
         do {
             $read = [$this->fp];
             if (stream_select($read, $empty, $empty, 0) === false) {
-                Log::warning('Stream select error within the ' . __CLASS__);
+                Log::warning('Stream select error within ' . __CLASS__);
             }
             if (count($read) === 1) {
                 $packet = stream_socket_recvfrom($this->fp, 8192, 0, $peer); // @todo: check if it still works if two packets arrive at the same time
-                if ($peer === $this->gameserver_ip_port) {
-                    $packets[] = $packet;
-                } else {
-                    Log::notice('Ignoring packet from ' . $peer . ' because it is not the gamesever (' . $this->gameserver_ip_port . ')!');
+                if (!isset($packets[$peer])) {
+                    $packets[$peer] = [];
                 }
+                $packets[$peer][] = $packet;
             }
         } while (count($read) === 1);
 
