@@ -8,45 +8,21 @@ namespace TMT;
  */
 class Match {
     /**
-     * @var Rcon
+     * @var MatchData
      */
-    private $rcon;
+    private $match_data;
 
     /**
-     * Match id, is used for logging purposes and to submit the result.
-     * @var int
+     * @var MapElection
      */
-    private $id;
-
-    /**
-     * Game server ip address.
-     * @var string
-     */
-    private $ip;
-
-    /**
-     * Game server port.
-     * @var int
-     */
-    private $port;
-
-    /**
-     * The url for updating the tournament system.
-     * @var string
-     */
-    private $url;
-
-    /**
-     * The default map.
-     * @var string
-     */
-    private $default_map;
+    private $map_election;
 
     /**
      * Current match status. (One of the constants below.)
      * @var string
      */
-    private $match_status;
+    private $match_status = self::MAP_ELECTION;
+    const MAP_ELECTION = 'MAP_ELECTION'; // Important: Names and values of constants must be the same for defined() method
     const WARMUP = 'WARMUP';
     const KNIFE = 'KNIFE';
     const AFTER_KNIFE = 'AFTER_KNIFE';
@@ -54,29 +30,28 @@ class Match {
     const END = 'END';
     const PAUSE = 'PAUSE';
 
+    private $allowed_commands = [
+        'anytime' => ['help', 'fullhelp', 'dev'],
+        self::MAP_ELECTION => ['map', 'veto'],
+        self::WARMUP => ['ready', 'unready'],
+        self::KNIFE => [],
+        self::AFTER_KNIFE => ['stay', 'switch'],
+        self::MATCH => ['pause'],
+        self::END => [],
+        self::PAUSE => ['ready', 'unready']
+    ];
+
     /**
      * Ready status of both teams.
      * @var bool[]
      */
-    private $ready_status = ['CT' => false, 'TERRORIST' => false];
-
-    /**
-     * Map vote status of both teams.
-     * @var string[]
-     */
-    private $map_status = ['CT' => '', 'TERRORIST' => ''];
-
-    /**
-     * Both team names.
-     * @var string[]
-     */
-    private $teamname = ['CT' => '', 'TERRORIST' => ''];
+    private $ready_status = ['CT' => false, 'T' => false];
 
     /**
      * Current score.
      * @var int[]
      */
-    private $score = ['CT' => 0, 'TERRORIST' => 0];
+    private $score = ['CT' => 0, 'T' => 0];
 
     /**
      * Winning team of the knife round.
@@ -88,19 +63,13 @@ class Match {
      * Max rounds to calculate halftime and match end.
      * @var int
      */
-    private $maxrounds = 30;
+    private $maxrounds = 30; // @todo read that from rcon after loading config
 
     /**
      * Max rounds in overtime to calculate halftime and match end.
      * @var int
      */
-    private $ot_maxrounds = 10;
-
-    /**
-     * All available maps that can be voted.
-     * @var string[]
-     */
-    private $map_pool = ['de_dust2', 'de_inferno', 'de_train', 'de_mirage', 'de_cache', 'de_cobblestone', 'de_overpass'];
+    private $ot_maxrounds = 10; // @todo read that from rcon after loading config
 
     /**
      * Time of the last periodic message.
@@ -115,36 +84,22 @@ class Match {
     private $periodic_message_interval = 30;
 
     /**
-     * Constructs a match to observe and control it.
-     * @param string $udp_log_ip_port IP:port of the udp log receiver.
-     * @param string[] $map_pool All allowed maps for agreement or banning.
-     * @param string $default_map The default map.
-     * @param int $match_id Match id, is used for logging purposes and to submit the result.
-     * @param int $team1_id The id of the first team.
-     * @param string $team1_name The name of the first team.
-     * @param int $team2_id THe id of the second team.
-     * @param string $team2_name The name of the second team.
-     * @param string $ip The ip address of the gameserver.
-     * @param int $port The port of the gameserver.
-     * @param string $rcon The rcon password of the gameserver.
-     * @param string $password The gameserver join password that will be set.
-     * @param string $config The config file to load.
-     * @param string $pickmode One of: 'bo1', 'bo1random', 'agree'
-     * @param string $url The url to call after match end to submit the result.
-     * @param string $match_end One of: 'kick', 'quit', 'none'
+     * Are the sides switched?
+     * @var bool
      */
-    public function __construct($udp_log_ip_port, $map_pool, $default_map, $match_id, $team1_id, $team1_name, $team2_id, $team2_name, $ip, $port, $rcon, $password, $config, $pickmode, $url, $match_end) {
-        // @todo set all internal fields
-        $this->match_id = $match_id;
-        $this->teamname = ['CT' => $team1_name, 'TERRORIST' => $team2_name];
-        $this->default_map = $default_map;
-        $this->config = $config;
-        $this->url = $url;
-        $this->match_status = self::WARMUP;
-        $this->ip = $ip;
-        $this->port = $port;
+    private $switched_sides = false;
 
-        $this->rcon = new Rcon($ip, $port, $rcon);
+    /**
+     * Constructs a match to observe and control it.
+     * @param MatchData $match_data
+     * @param string $udp_log_ip_port IP:port of the udp log receiver.
+     */
+    public function __construct($match_data, $udp_log_ip_port) {
+        $this->match_data = $match_data;
+
+        $this->rcon = new Rcon($match_data->getIp(), $match_data->getPort(), $match_data->getRcon());
+
+        $this->map_election = new MapElection($match_data->getPickmode(), $match_data->getMapPool(), $this);
 
         $this->rcon('mp_logdetail 0');
         $this->rcon('sv_logecho 0');
@@ -152,11 +107,41 @@ class Match {
         $this->rcon('logaddress_delall');
         $this->rcon('logaddress_add ' . $udp_log_ip_port);
         $this->rcon('log on');
-        $this->rcon('mp_teamname_1 ' . $this->teamname['CT']); // @todo check for security issues
-        $this->rcon('mp_teamname_2 ' .  $this->teamname['TERRORIST']); // @todo check for security issues
-        $this->rcon('changelevel ' . $default_map);
+        $this->rcon('mp_teamname_1 ' . $this->getTeamName('CT')); // @todo check for security issues
+        $this->rcon('mp_teamname_2 ' . $this->getTeamName('T')); // @todo check for security issues
+        $this->rcon('changelevel ' . $match_data->getDefaultMap());
 
         $this->log('match created');
+    }
+
+    /**
+     * Returns the team name.
+     * @param string $team 'CT' or 'T'
+     * @return string
+     */
+    public function getTeamName($team) {
+        if ($this->switched_sides) {
+            $team = $this->getOtherTeam($team);
+        }
+        switch ($team) {
+            case 'CT': return $this->match_data->getTeam1Name();
+            case 'T': return $this->match_data->getTeam2Name();
+        }
+    }
+
+    /**
+     * Returns the team id.
+     * @param string $team 'CT' or 'T'
+     * @return int
+     */
+    private function getTeamId($team) {
+        if ($this->switched_sides) {
+            $team = $this->getOtherTeam($team);
+        }
+        switch ($team) {
+            case 'CT': return $this->match_data->getTeam1Id();
+            case 'T': return $this->match_data->getTeam2Id();
+        }
     }
 
     /**
@@ -168,34 +153,52 @@ class Match {
     }
 
     /**
-     * Returns ip:port.
-     * @return string
+     * Sets the current match status.
+     * @param string $match_status One of the class constants.
+     * @throws \Exception
      */
-    public function getIpPort() {
-        return $this->ip . ':' . $this->port;
+    public function setMatchStatus($match_status) {
+        if (!defined('self::' . $match_status)) {
+            Log::error($match_status . ' is no supported match status, set it to ' . self::WARMUP . ' instead');
+            $match_status = self::WARMUP;
+        }
+        $this->match_status = $match_status;
     }
 
     /**
-     * Returns match id.
-     * @return int
+     * Returns the match data object.
+     * @return MatchData
      */
-    public function getMatchId() {
-        return $this->match_id;
+    public function getMatchData() {
+        return $this->match_data;
+    }
+
+    /**
+     * Returns the opposite of 'CT' or 'T'.
+     * @param $team 'CT' or 'T'
+     * @return string 'T' or 'CT'
+     */
+    public function getOtherTeam($team) {
+        switch ($team) {
+            case 'CT': return 'T';
+            case 'T': return 'CT';
+        }
     }
 
     /**
      * Says messages depending on the current match status and map vote status.
      */
-    private function sayPeriodicMessage() {
+    public function sayPeriodicMessage() {
         // @todo: move this rcon to a better location?!
         $this->rcon('mp_warmup_pausetimer 1');
 
         $this->last_periodic_message = time();
 
         switch ($this->match_status) {
+            case self::MAP_ELECTION:
+                $this->map_election->sayPeriodicMessage();
+                break;
             case self::WARMUP:
-                $this->say('USE !map TO CHANGE MAP (BOTH TEAMS HAVE TO)');
-                // No break! We want the PAUSED block as well!
             case self::PAUSE:
                 $this->say('WAITING FOR BOTH TEAMS TO !ready UP!');
                 $single_ready_team = $this->getSingleReadyTeam();
@@ -214,62 +217,33 @@ class Match {
             case self::MATCH:
                 break;
             case self::END:
-                $leading_team = $this->getLeadingTeam();
-                $this->say('MATCH FINISHED! WINNER: ' . $this->getTeamPrint($leading_team));
+                $this->say('MATCH FINISHED!');
                 $this->say('  ' . $this->getTeamPrint('CT') . ': ' . $this->score['CT']);
-                $this->say('  ' . $this->getTeamPrint('TERRORIST') . ': ' . $this->score['TERRORIST']);
+                $this->say('  ' . $this->getTeamPrint('T') . ': ' . $this->score['T']);
                 $this->say('SCORE WILL BE SUBMITTED AUTOMATICALLY!');
                 break;
         }
-
-        $map_wished = false;
-        foreach (['CT', 'TERRORIST'] as $team) {
-            if ($this->map_status[$team] !== '') {
-                $map_wished = true;
-                $this->say($this->getTeamPrint($team) . ' WANTS TO CHANGE MAP TO ' . $this->map_status[$team]);
-                $this->say('TO CONFIRM TYPE: !map ' . $this->map_status[$team]);
-            }
-        }
-        if ($map_wished === true) {
-            $this->say('TO REVOKE A MAP WISH TYPE: !map');
-        }
     }
 
     /**
-     * Returns an often needed printable String for one team:
-     *      Name of the team (CT)
-     *      Other team name (TERRORRIST)
+     * Returns an often needed printable String for one team, example 'Name of the team (CT)' or 'Other team name (T)'
      * @param string $team
      * @return string
      */
-    private function getTeamPrint($team) {
-        return $this->teamname[$team] . ' (' . $team . ')';
+    public function getTeamPrint($team) {
+        return $this->getTeamName($team) . ' (' . $team . ')';
     }
 
     /**
-     * Returns 'CT' or 'TERRORIST' depending which team is ready or false if no team is ready.
+     * Returns 'CT' or 'T' depending which team is ready or false if no team is ready.
      * @return bool|string
      */
     private function getSingleReadyTeam() {
         if ($this->ready_status['CT'] === true) {
             return 'CT';
         }
-        if ($this->ready_status['TERRORIST'] === true) {
-            return 'TERRORIST';
-        }
-        return false;
-    }
-
-    /**
-     * Returns 'CT' or 'TERRORIST' depending which team is leading or false if it's even.
-     * @return bool|string
-     */
-    private function getLeadingTeam() {
-        if ($this->score['CT'] > $this->score['TERRORIST']) {
-            return 'CT';
-        }
-        if ($this->score['TERRORIST'] > $this->score['CT']) {
-            return 'TERRORIST';
+        if ($this->ready_status['T'] === true) {
+            return 'T';
         }
         return false;
     }
@@ -278,53 +252,70 @@ class Match {
      * Is triggered by any text message that is chatted ingame.
      * @param string $name The nickname of the player.
      * @param string $steam_id The steam id of the player.
-     * @param string $team The teeam of the player.
+     * @param string $team The team of the player.
      * @param string $message The complete message.
      */
     private function onSay($name, $steam_id, $team, $message) {
+        if ($team === 'TERRORIST') {
+            $team = 'T';
+        }
+
         if ($steam_id !== 'Console') {
             $this->log('SAY | ' . $name . '<' . $team . '><' . $steam_id . '>: ' . $message);
         }
-        if ($message[0] === '!') {
-            $parts = explode(' ', substr($message, 1));
-            switch (strtolower($parts[0])) {
-                case 'ready':
-                    $this->commandReady($team);
-                    break;
-                case 'unready':
-                    $this->commandUnready($team);
-                    break;
-                case 'pause':
-                    $this->commandPause($team);
-                    break;
-                case 'help':
-                    $this->commandHelp();
-                    break;
-                case 'fullhelp':
-                    $this->commandFullhelp();
-                    break;
-                case 'map':
-                    if (!isset($parts[1])) {
-                        $parts[1] = '';
-                    }
-                    $this->commandMap($team, $parts[1]);
-                    break;
-                case 'stay':
-                    $this->commandStay($team);
-                    break;
-                case 'switch':
-                    $this->commandSwitch($team);
-                    break;
-                case 'dev':
-                    $this->say('status: ' . $this->match_status);
-                    $this->say($this->getTeamPrint('CT') . ': ' . $this->score['CT']);
-                    $this->say($this->getTeamPrint('TERRORIST') . ': ' . $this->score['TERRORIST']);
-                    $this->say('ME: ' . $name . ' @ ' . $this->getTeamPrint($team));
-                    break;
-                default:
-                    $this->commandUnkown();
-                    break;
-            }
+
+        if ($message[0] !== '!') { // message is no command
+            return;
+        }
+
+        $parts = explode(' ', substr($message, 1));
+        if (!isset($parts[1])) {
+            $parts[1] = '';
+        }
+
+        $allowed_commands = array_merge($this->allowed_commands['anytime'], $this->allowed_commands[$this->match_status]);
+        if (!in_array($parts[0], $allowed_commands)) { // command is unkown or not allowed
+            $this->commandHelp();
+            return;
+        }
+
+        switch (strtolower($parts[0])) {
+            case 'ready':
+                $this->commandReady($team);
+                break;
+            case 'unready':
+                $this->commandUnready($team);
+                break;
+            case 'pause':
+                $this->commandPause($team);
+                break;
+            case 'help':
+                $this->commandHelp();
+                break;
+            case 'fullhelp':
+                $this->commandFullhelp();
+                break;
+            case 'map':
+                $this->map_election->wish($team, $parts[1]);
+                break;
+            case 'veto':
+                $this->map_election->veto($team, $parts[1]);
+                break;
+            case 'stay':
+                $this->commandStay($team);
+                break;
+            case 'switch':
+                $this->commandSwitch($team);
+                break;
+            case 'dev':
+                $this->say('status: ' . $this->match_status);
+                $this->say($this->getTeamPrint('CT') . ': ' . $this->score['CT']);
+                $this->say($this->getTeamPrint('T') . ': ' . $this->score['T']);
+                $this->say('ME: ' . $name . ' @ ' . $this->getTeamPrint($team));
+                break;
+            default:
+                $this->say('THIS COMMAND IS NOT IMPLEMENTED YET!');
+                break;
         }
     }
 
@@ -336,23 +327,28 @@ class Match {
      * @param int $t_score
      */
     private function onRoundEnd($ct_score, $t_score) {
-        $this->log('round ends with ' . $this->getTeamPrint('CT') . '(' . $ct_score . ') and ' . $this->getTeamPrint('TERRORIST') . '(' . $t_score . ')');
+        $this->log('round ends with ' . $this->getTeamPrint('CT') . '(' . $ct_score . ') and ' . $this->getTeamPrint('T') . '(' . $t_score . ')');
         $this->score['CT'] = $ct_score;
-        $this->score['TERRORIST'] = $t_score;
+        $this->score['T'] = $t_score;
         if ($this->match_status === self::KNIFE) {
             $this->match_status = self::AFTER_KNIFE;
-            $this->knife_winner = $ct_score === 1 ? 'CT' : 'TERRORIST';
+            $this->knife_winner = $ct_score === 1 ? 'CT' : 'T';
             $this->log($this->getTeamPrint($this->knife_winner) . ' wins the knife round');
             $this->rcon('mp_pause_match');
             $this->sayPeriodicMessage();
         } else if ($this->match_status === self::MATCH) {
-            if ($this->isTeamswitch($ct_score + $t_score)) {
+            if ($this->isHalftime($ct_score + $t_score)) {
                 $this->switchTeamInternals();
             } else if ($this->isMatchEnd($ct_score, $t_score)) {
                 $this->log('match end');
                 $this->match_status = self::END;
                 $this->sayPeriodicMessage();
-                $this->sendResult($ct_score, $t_score);
+                $this->report([
+                    'match_id' => $this->getMatchData()->getMatchId(),
+                    'type' => 'end',
+                    $this->getTeamId('CT') => $this->score['CT'],
+                    $this->getTeamId('T') => $this->score['T']
+                ]);
                 // @todo kick all player
                 // @todo disable udp logging via rcon
             }
@@ -382,23 +378,19 @@ class Match {
      * @param string $team
      */
     private function commandReady($team) {
-        if ($this->match_status === self::WARMUP || $this->match_status === self::PAUSE) {
-            if ($this->ready_status[$team] !== true) {
-                $this->log($this->getTeamPrint($team) . ' is ready');
-            }
-            $this->ready_status[$team] = true;
-            if ($this->ready_status['CT'] === true && $this->ready_status['TERRORIST'] === true) {
-                $this->ready_status = ['CT' => false, 'TERRORIST' => false];
-                if ($this->match_status === self::WARMUP) {
-                    $this->startKniferound();
-                } else {
-                    $this->log('unpause match');
-                    $this->match_status = self::MATCH;
-                    $this->say('MATCH IS LIVE AGAIN!');
-                    $this->rcon('mp_unpause_match');
-                }
+        if ($this->ready_status[$team] !== true) {
+            $this->log($this->getTeamPrint($team) . ' is ready');
+        }
+        $this->ready_status[$team] = true;
+        if ($this->ready_status['CT'] === true && $this->ready_status['T'] === true) {
+            $this->ready_status = ['CT' => false, 'T' => false];
+            if ($this->match_status === self::WARMUP) {
+                $this->startKniferound();
             } else {
-                $this->sayPeriodicMessage();
+                $this->log('unpause match');
+                $this->match_status = self::MATCH;
+                $this->say('MATCH IS LIVE AGAIN!');
+                $this->rcon('mp_unpause_match');
             }
         }
     }
@@ -408,12 +400,10 @@ class Match {
      * @param string $team
      */
     private function commandUnready($team) {
-        if (in_array($this->match_status, [self::WARMUP, self::PAUSE])) {
-            if ($this->ready_status[$team] !== false) {
-                $this->log($this->getTeamPrint($team) . ' is unready');
-            }
-            $this->ready_status[$team] = false;
+        if ($this->ready_status[$team] !== false) {
+            $this->log($this->getTeamPrint($team) . ' is unready');
         }
+        $this->ready_status[$team] = false;
     }
 
     /**
@@ -421,35 +411,21 @@ class Match {
      * @param string $team
      */
     private function commandPause($team) {
-        if ($this->match_status === self::MATCH) {
-            $this->log($this->getTeamPrint($team) . ' wants to pause the match');
-            $this->match_status = self::PAUSE;
-            $this->say('MATCH WILL BE PAUSED (NEXT FREEZETIME)');
-            $this->say('TYPE !ready TO CONTINUE');
-            $this->rcon('mp_pause_match');
-        }
+        $this->match_status = self::PAUSE;
+        $this->log($this->getTeamPrint($team) . ' pauses the match');
+        $this->say($this->getTeamPrint($team) . ' PAUSES THE MATCH');
+        $this->say('MATCH WILL BE PAUSED (NEXT FREEZETIME)');
+        $this->say('TYPE !ready TO CONTINUE');
+        $this->rcon('mp_pause_match');
     }
 
     /**
      * Displays all commands which are available for the current match status.
      */
     private function commandHelp() {
-        $commands = '!map';
-        switch ($this->match_status) {
-            case self::AFTER_KNIFE:
-                $commands .= ', !stay, !switch';
-                break;
-            case self::WARMUP:
-            case self::PAUSE:
-                $commands .= ', !ready, !unready';
-                break;
-            case self::MATCH:
-                $commands .= ', !pause';
-                break;
-        }
-
+        $commands = array_merge($this->allowed_commands['anytime'], $this->allowed_commands[$this->match_status]);
         $this->say('YOU CAN USE THE FOLLOWING COMMANDS:');
-        $this->say($commands);
+        $this->say('!' . implode(', !', $commands));
         $this->say('USE !fullhelp TO GET ALL COMMANDS!');;
     }
 
@@ -457,48 +433,12 @@ class Match {
      * Displays all available commands.
      */
     private function commandFullhelp() {
+        $commands = [];
+        array_walk_recursive($this->allowed_commands, function($value, $key) use (&$commands) {
+            $commands[] = $value;
+        });
         $this->say('ALL COMMANDS:');
-        $this->say('!ready, !unready, !stay, !switch, !pause, !map, !help, !fullhelp');
-    }
-
-    /**
-     * Will be called if a team votes for a map. If both teams vote for the same map, it will be changed.
-     * @param string $team
-     * @param string $map
-     */
-    private function commandMap($team, $map) {
-        if ($this->map_status[$team] !== '' && $map === '') {
-            $this->map_status[$team] = '';
-            $this->say($this->getTeamPrint($team) . ' REVOKED MAP WISH!');
-            $this->log($this->getTeamPrint($team) . ' revokes map wish');
-            return;
-        }
-
-        if (!in_array($map, $this->map_pool)) {
-            $this->map_status[$team] = '';
-            $this->say('ONLY THE FOLLOWING MAPS ARE IN THE MAP POOL:');
-            $this->say(implode(', ', $this->map_pool));
-        } else {
-            if ($this->map_status[$team] !== $map) {
-                $this->log($this->getTeamPrint($team) . ' wants map ' . $map);
-            }
-            $this->map_status[$team] = $map;
-            if ($this->map_status['CT'] === $this->map_status['TERRORIST']) {
-                $this->map_status = ['CT' => '', 'TERRORIST' => ''];
-                $this->log('change map to ' . $map);
-                $this->rcon('changelevel ' . $map);
-                $this->match_status = self::WARMUP;
-            } else {
-                $this->sayPeriodicMessage();
-            }
-        }
-    }
-
-    /**
-     * Will be called if an unkown command is executed.
-     */
-    private function commandUnkown() {
-        $this->say('WUT? TRY IT WITH !help OR !fullhelp');
+        $this->say('!' . implode(', !', $commands));
     }
 
     /**
@@ -506,7 +446,7 @@ class Match {
      * @param string $team The team which executes the command. Will be checked if it was the winning team of the knife round.
      */
     private function commandStay($team) {
-        if ($this->match_status === self::AFTER_KNIFE && $team === $this->knife_winner) {
+        if ($team === $this->knife_winner) {
             $this->log($this->getTeamPrint($team) . ' wants to stay');
             $this->startMatch();
         }
@@ -517,7 +457,7 @@ class Match {
      * @param string $team The team which executes the command. Will be checked if it was the winning team of the knife round.
      */
     private function commandSwitch($team) {
-        if ($this->match_status === self::AFTER_KNIFE && $team === $this->knife_winner) {
+        if ($team === $this->knife_winner) {
             $this->log($this->getTeamPrint($team) . ' wants to switch sides');
             $this->switchTeamInternals();
             $this->rcon('mp_swapteams');
@@ -531,7 +471,7 @@ class Match {
     private function startKniferound() {
         $this->log('start knife round');
         $this->match_status = self::KNIFE;
-        $this->rcon('exec ' . $this->config);
+        $this->rcon('exec ' . $this->match_data->getConfig());
         $this->rcon('mp_warmup_end');
         $this->rcon('mp_restartgame 3');
         $this->say('DO NOT FORGET TO RECORD!');
@@ -544,10 +484,14 @@ class Match {
     private function startMatch() {
         $this->log('start match');
         $this->match_status = self::MATCH;
-        $this->score = ['CT' => 0, 'TERRORIST' => 0];
+        $this->score = ['CT' => 0, 'T' => 0];
         $this->rcon('mp_unpause_match');
-        $this->rcon('exec ' . $this->config);
+        $this->rcon('exec ' . $this->match_data->getConfig());
         $this->rcon('mp_restartgame 10');
+        $this->report([
+            'match_id' => $this->match_data->getMatchId(),
+            'type' => 'start'
+        ]);
         $this->say('THE MATCH IS LIVE AFTER THE NEXT RESTART!');
         $this->say('GL & HF EVERYBODY');
     }
@@ -556,24 +500,34 @@ class Match {
      * Says something on the gameserver.
      * @param string $message
      */
-    private function say($message) {
+    public function say($message) {
         $this->rcon('say [BL-BOT] ' . $message);
     }
 
     /**
      * Executes a rcon command on the gameserver.
      * @param string $rcon
+     * @return string rcon return output
      */
-    private function rcon($rcon) {
-        $this->rcon->rcon($rcon);
+    public function rcon($rcon) {
+        if (explode(' ', trim($rcon))[0] !== 'say') {
+            $this->log('rcon executed: ' . $rcon, true);
+        }
+        return $this->rcon->rcon($rcon);
     }
 
     /**
      * Writes something into the logfile, together with the match id.
      * @param string $message
+     * @param bool $debug
      */
-    private function log($message) {
-        Log::info('MATCH ' . $this->id . ' | ' . $message);
+    public function log($message, $debug = false) {
+        $message = 'MATCH ' . $this->match_data->getMatchId() . ' | ' . $message;
+        if ($debug === true) {
+            Log::debug($message);
+        } else {
+            Log::info($message);
+        }
     }
 
     /**
@@ -582,11 +536,10 @@ class Match {
     private function switchTeamInternals() {
         $this->log('switch teams');
 
-        $this->teamname = ['CT' => $this->teamname['TERRORIST'], 'TERRORIST' => $this->teamname['CT']];
-        $this->score = ['CT' => $this->score['TERRORIST'], 'TERRORIST' => $this->score['CT']];
-        $this->map_status = ['CT' => $this->map_status['TERRORIST'], 'TERRORIST' => $this->map_status['CT']];
-        $this->ready_status = ['CT' => $this->ready_status['TERRORIST'], 'TERRORIST' => $this->ready_status['CT']];
+        $this->switched_sides = !$this->switched_sides;
 
+        $this->score = ['CT' => $this->score['T'], 'T' => $this->score['CT']];
+        $this->ready_status = ['CT' => $this->ready_status['T'], 'T' => $this->ready_status['CT']];
     }
 
     /**
@@ -594,7 +547,7 @@ class Match {
      * @param int $rounds_played
      * @return bool
      */
-    private function isTeamswitch($rounds_played) {
+    private function isHalftime($rounds_played) {
         $ot_halftime = $this->maxrounds + (max(1, $this->getOvertimeNumber($rounds_played)) - 0.5) * $this->ot_maxrounds;
         return $rounds_played === $this->maxrounds / 2 || $rounds_played === $ot_halftime;
     }
@@ -621,16 +574,24 @@ class Match {
         return max(0, ceil(($rounds_played - $this->maxrounds) / $this->ot_maxrounds));
     }
 
-    private function sendResult($ct_score, $t_score) {
-        $data = ['id' => $this->id, 'ct_score' => $ct_score, 't_score' => $t_score];
-        $this->log('send result: ' . json_encode($data));
+    /**
+     * Posts data to the match data url (HTTP POST).
+     * @param array $post_data
+     */
+    public function report(array $post_data) {
+        $this->log('report: ' . json_encode($post_data));
+
         $options = ['http' => [
             'header'  => "Content-type: application/x-www-form-urlencoded\r\n",
             'method'  => 'POST',
-            'content' => http_build_query($data)]];
+            'content' => http_build_query($post_data)]];
+
         $context  = stream_context_create($options);
-        file_get_contents($this->url, false, $context);
-        // @todo check result of file_get_contents
+
+        if (file_get_contents($this->match_data->getUrl(), false, $context) === false) {
+            $this->log('report failed, try again later');
+            Takser::add(60, [$this, __METHOD__], [$post_data]);
+        }
     }
 
     /**
@@ -670,7 +631,7 @@ class Match {
             $this->onSay($player['name'], $player['guid'], $player['team'], $message);
 
         } else {
-            echo $packet . PHP_EOL;
+            // echo $packet . PHP_EOL;
         }
     }
 }

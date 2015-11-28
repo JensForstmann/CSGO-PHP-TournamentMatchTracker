@@ -76,43 +76,12 @@ class TournamentMatchTracker {
             // check incoming tcp traffic to start new matches
             $buffers = $this->tcp_server->getAllBuffers();
             foreach ($buffers as $client => $buffer) {
-                $m = json_decode($buffer);
-                if (true
-                    && isset($m->map_pool) && is_array($m->map_pool)
-                    && isset($m->default_map)
-                    && isset($m->match_id)
-                    && isset($m->team1->id) && isset($m->team1->name)
-                    && isset($m->team2->id) && isset($m->team2->name)
-                    && isset($m->ip)
-                    && isset($m->port)
-                    && isset($m->rcon)
-                    && isset($m->password)
-                    && isset($m->config)
-                    && isset($m->pickmode)
-                    && isset($m->url)
-                    && isset($m->match_end)
-                ) {
+                $match_data = new MatchData();
+                if ($match_data->setFieldsFromJsonString($buffer) === true) {
                     $this->tcp_server->disconnectClient($client);
-                    Log::debug('Create new match with the following data: ' . json_encode($m));
                     try {
-                        $this->matches[] = new Match(
-                            $this->arg['udp-ip'] . ':' . $this->arg['udp-port'],
-                            $m->map_pool,
-                            $m->default_map,
-                            $m->match_id,
-                            $m->team1->id,
-                            $m->team1->name,
-                            $m->team2->id,
-                            $m->team2->name,
-                            $m->ip,
-                            $m->port,
-                            $m->rcon,
-                            $m->password,
-                            $m->config,
-                            $m->pickmode,
-                            $m->url,
-                            $m->match_end
-                            );
+                        Log::debug('create new match with the following data: ' . $match_data->getJsonString());
+                        $this->matches[] = new Match($match_data, $this->arg['udp-ip'] . ':' . $this->arg['udp-port']);
                     } catch (\Exception $e) {
                         Log::warning('Error creating match: ' . $e->getMessage());
                     }
@@ -125,7 +94,7 @@ class TournamentMatchTracker {
             // watch all matches
             foreach ($this->matches as $key => $match) {
                 try {
-                    $match_ip_port = $match->getIpPort();
+                    $match_ip_port = $match->getMatchData()->getIpPort();
                     $match_log_packets = [];
                     if (isset($log_packets[$match_ip_port])) {
                         $match_log_packets = $log_packets[$match_ip_port];
