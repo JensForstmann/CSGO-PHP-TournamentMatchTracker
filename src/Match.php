@@ -5,6 +5,7 @@ namespace TMT;
 /**
  * Match class.
  * Connects to a gameserver, sets some settings, enables udp logging and observes a match.
+ * @todo check if overtime is enabled or if a draw is possible
  */
 class Match {
     /**
@@ -90,12 +91,20 @@ class Match {
     private $switched_sides = false;
 
     /**
+     * Ip:port of the udp log receiver
+     * @var string
+     */
+    private $udp_log_ip_port;
+
+    /**
      * Constructs a match to observe and control it.
      * @param MatchData $match_data
      * @param string $udp_log_ip_port IP:port of the udp log receiver.
      */
     public function __construct($match_data, $udp_log_ip_port) {
         $this->match_data = $match_data;
+
+        $this->udp_log_ip_port = $udp_log_ip_port;
 
         $this->rcon = new Rcon($match_data->getIp(), $match_data->getPort(), $match_data->getRcon());
 
@@ -104,9 +113,9 @@ class Match {
         $this->rcon('mp_logdetail 0');
         $this->rcon('sv_logecho 0');
         $this->rcon('sv_logfile 0');
-        $this->rcon('logaddress_delall');
         $this->rcon('logaddress_add ' . $udp_log_ip_port);
         $this->rcon('log on');
+        $this->rcon('sv_password ' . $this->match_data->getPassword());
         $this->rcon('mp_teamname_1 ' . $this->getTeamName('CT')); // @todo check for security issues
         $this->rcon('mp_teamname_2 ' . $this->getTeamName('T')); // @todo check for security issues
         $this->rcon('changelevel ' . $match_data->getDefaultMap());
@@ -340,18 +349,45 @@ class Match {
             if ($this->isHalftime($ct_score + $t_score)) {
                 $this->switchTeamInternals();
             } else if ($this->isMatchEnd($ct_score, $t_score)) {
-                $this->log('match end');
-                $this->match_status = self::END;
-                $this->sayPeriodicMessage();
-                $this->report([
-                    'match_id' => $this->getMatchData()->getMatchId(),
-                    'type' => 'end',
-                    $this->getTeamId('CT') => $this->score['CT'],
-                    $this->getTeamId('T') => $this->score['T']
-                ]);
-                // @todo kick all player
-                // @todo disable udp logging via rcon
+                $this->endMatch();
             }
+        }
+    }
+
+    private function endMatch() {
+        $this->log('match end');
+        $this->match_status = self::END;
+        $this->sayPeriodicMessage();
+
+        $this->report([
+            'match_id' => $this->getMatchData()->getMatchId(),
+            'type' => 'end',
+            $this->getTeamId('CT') => $this->score['CT'],
+            $this->getTeamId('T') => $this->score['T']
+        ]);
+
+        $this->log('disable udp logging');
+        $this->rcon('logaddress_del ' . $this->udp_log_ip_port);
+
+        switch(strtolower($this->match_data->getMatchEnd())) {
+            case 'kick':
+                $this->log('kick all');
+                $command = '';
+                foreach ($this->rcon('status') as $line) {
+                    // @todo status => playerids
+                    // preg_match
+                    //$command .= 'kickid ' . $matches[0];
+                }
+                $this->rcon($command);
+                break;
+            case 'quit':
+                $this->log('quit server');
+                $this->rcon('quit');
+                break;
+            case 'none':
+                break;
+            default:
+                $this->log('match end action is not supported:' . $this->match_data->getMatchEnd());
         }
     }
 

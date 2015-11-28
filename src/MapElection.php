@@ -46,6 +46,7 @@ class MapElection {
      * @throws \Exception If $mode is not supported.
      */
     public function __construct($mode, $map_pool, $match) {
+        $mode = strtoupper($mode);
         $modes = [self::AGREE, self::BO1, self::BO1RANDOM];
         if (!in_array($mode, $modes)) {
             throw new \Exception('Map election mode ' . $mode . ' is not supported! Only the following modes are supported: ' . implode(', ' , $modes));
