@@ -36,7 +36,7 @@ class MapElection {
      * From how many maps left, the random mode should fix a map.
      * @var int
      */
-    private $last_maps_random = 3;
+    private $last_maps_random;
 
     /**
      * MapElection constructor.
@@ -56,6 +56,8 @@ class MapElection {
         $this->map_pool = $map_pool;
 
         $this->match = $match;
+
+        $this->last_maps_random = count($this->map_pool) % 2 === 0 ? 2 : 3;
     }
 
     /**
@@ -146,13 +148,21 @@ class MapElection {
      */
     private function changeMap($map) {
         $this->match->log('change map to ' . $map);
+
         $this->match->report([
             'match_id' => $this->match->getMatchData()->getMatchId(),
             'type' => 'map',
             'map' => $map
         ]);
-        $this->match->rcon('changelevel ' . $map);
-        $this->match->setMatchStatus(Match::WARMUP);
+
+        $this->match->say('MAP WILL BE CHANGED TO ' . $map . ' IN 10 SECONDS');
+
+        $this->match->setMatchStatus(Match::MAP_CHANGE);
+
+        Tasker::add(10, function ($map) {
+            $this->match->rcon('changelevel ' . $map);
+            $this->match->setMatchStatus(Match::WARMUP);
+        }, [$map]);
     }
 
     public function sayPeriodicMessage() {

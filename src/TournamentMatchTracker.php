@@ -43,7 +43,36 @@ class TournamentMatchTracker {
             Log::error($e->getMessage());
             exit(100);
         }
-        //$this->matches[] = new Match(1337, '192.168.11.138', 27016, 'pass', 'esl5on5.cfg', '', 'Team G-Hole', 'BieberLAN', 'de_dust2');
+
+
+        // @todo remove debug lines
+        $md = new MatchData();
+        $md->setFieldsFromJsonString('    {
+        "map_pool": [
+                "de_dust2",
+                "de_train",
+                "de_inferno",
+                "de_cache",
+                "de_mirage",
+                "de_cbble"],
+        "default_map": "de_dust2",
+        "match_id": 1337,
+        "team1": {
+                "id": 13,
+                "name": "Team NixMacher"},
+        "team2": {
+                "id": 37,
+                "name": "Bobs Bau-Verein"},
+        "ip": "192.168.11.138",
+        "port": 27016,
+        "rcon": "pass",
+        "password": "server_password",
+        "config": "esl5on5.cfg",
+        "pickmode": "bo1random",
+        "url": "https://www.bieberlan.de/api/turniere/csgo.php?token=abcdefg",
+        "match_end": "kick"
+    }');
+        $this->matches[] = new Match($md, $this->arg['udp-ip'] . ':' . $this->arg['udp-port']);
     }
 
     private function parseCommandLineParameters() {
@@ -107,6 +136,9 @@ class TournamentMatchTracker {
                     unset($this->matches[$key]);
                 }
             }
+
+            // execute jobs
+            Tasker::doWork();
 
             // be nice to the cpu
             usleep(100 * 1000); // 100 ms

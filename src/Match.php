@@ -24,6 +24,7 @@ class Match {
      */
     private $match_status = self::MAP_ELECTION;
     const MAP_ELECTION = 'MAP_ELECTION'; // Important: Names and values of constants must be the same for defined() method
+    const MAP_CHANGE = 'MAP_CHANGE';
     const WARMUP = 'WARMUP';
     const KNIFE = 'KNIFE';
     const AFTER_KNIFE = 'AFTER_KNIFE';
@@ -32,8 +33,9 @@ class Match {
     const PAUSE = 'PAUSE';
 
     private $allowed_commands = [
-        'anytime' => ['help', 'fullhelp', 'dev'],
+        'anytime' => ['help', 'fullhelp', 'dev'], // @todo remove dev command
         self::MAP_ELECTION => ['map', 'veto'],
+        self::MAP_CHANGE => [],
         self::WARMUP => ['ready', 'unready'],
         self::KNIFE => [],
         self::AFTER_KNIFE => ['stay', 'switch'],
@@ -116,8 +118,8 @@ class Match {
         $this->rcon('logaddress_add ' . $udp_log_ip_port);
         $this->rcon('log on');
         $this->rcon('sv_password ' . $this->match_data->getPassword());
-        $this->rcon('mp_teamname_1 ' . $this->getTeamName('CT')); // @todo check for security issues
-        $this->rcon('mp_teamname_2 ' . $this->getTeamName('T')); // @todo check for security issues
+        $this->rcon('mp_teamname_1 "' . $this->getTeamName('CT') . '"');
+        $this->rcon('mp_teamname_2 "' . $this->getTeamName('T') . '"');
         $this->rcon('changelevel ' . $match_data->getDefaultMap());
 
         $this->log('match created');
@@ -132,10 +134,12 @@ class Match {
         if ($this->switched_sides) {
             $team = $this->getOtherTeam($team);
         }
+        $name = '';
         switch ($team) {
-            case 'CT': return $this->match_data->getTeam1Name();
-            case 'T': return $this->match_data->getTeam2Name();
+            case 'CT': $name = $this->match_data->getTeam1Name(); break;
+            case 'T': $name = $this->match_data->getTeam2Name(); break;
         }
+        return str_replace(['"', ';'], '', $name);
     }
 
     /**
@@ -217,6 +221,8 @@ class Match {
                 }
                 break;
             case self::KNIFE:
+                $this->say('KNIFE FOR SIDE!');
+                $this->say('KNIFE FOR SIDE!');
                 $this->say('KNIFE FOR SIDE!');
                 break;
             case self::AFTER_KNIFE:
@@ -316,7 +322,7 @@ class Match {
             case 'switch':
                 $this->commandSwitch($team);
                 break;
-            case 'dev':
+            case 'dev': // @todo remove this dev block
                 $this->say('status: ' . $this->match_status);
                 $this->say($this->getTeamPrint('CT') . ': ' . $this->score['CT']);
                 $this->say($this->getTeamPrint('T') . ': ' . $this->score['T']);
@@ -362,8 +368,10 @@ class Match {
         $this->report([
             'match_id' => $this->getMatchData()->getMatchId(),
             'type' => 'end',
-            $this->getTeamId('CT') => $this->score['CT'],
-            $this->getTeamId('T') => $this->score['T']
+            'team1id' => $this->getTeamId('CT'),
+            'team1score' => $this->score['CT'],
+            'team2id' => $this->getTeamId('T'),
+            'team2score' => $this->score['T']
         ]);
 
         $this->log('disable udp logging');
@@ -371,14 +379,16 @@ class Match {
 
         switch(strtolower($this->match_data->getMatchEnd())) {
             case 'kick':
-                $this->log('kick all');
-                $command = '';
-                foreach ($this->rcon('status') as $line) {
-                    // @todo status => playerids
-                    // preg_match
-                    //$command .= 'kickid ' . $matches[0];
-                }
-                $this->rcon($command);
+                Tasker::add(180, function() {
+                    $command = '';
+                    foreach (explode("\n", $this->rcon('status')) as $line) {
+                        if (preg_match('~^# +(\\d+) +(\\d+) +"(.*)" +([STEAM_:0-9]+) +([0-9:]+) +([0-9]+) +([0-9]+) +(.+) +([0-9]+) +([0-9.:]+)$~', $line, $matches)) {
+                            $command .= 'kickid ' . $matches[1] . ';';
+                        }
+                    }
+                    $this->log('kick all');
+                    $this->rcon($command);
+                });
                 break;
             case 'quit':
                 $this->log('quit server');
@@ -417,6 +427,9 @@ class Match {
         if ($this->ready_status[$team] !== true) {
             $this->log($this->getTeamPrint($team) . ' is ready');
         }
+
+        $say = $this->ready_status[$team] === false;
+
         $this->ready_status[$team] = true;
         if ($this->ready_status['CT'] === true && $this->ready_status['T'] === true) {
             $this->ready_status = ['CT' => false, 'T' => false];
@@ -426,8 +439,12 @@ class Match {
                 $this->log('unpause match');
                 $this->match_status = self::MATCH;
                 $this->say('MATCH IS LIVE AGAIN!');
+                $this->say('MATCH IS LIVE AGAIN!');
+                $this->say('MATCH IS LIVE AGAIN!');
                 $this->rcon('mp_unpause_match');
             }
+        } else if ($say) {
+            $this->sayPeriodicMessage();
         }
     }
 
@@ -510,6 +527,7 @@ class Match {
         $this->rcon('exec ' . $this->match_data->getConfig());
         $this->rcon('mp_warmup_end');
         $this->rcon('mp_restartgame 3');
+        $this->say('--------------------------------------');
         $this->say('DO NOT FORGET TO RECORD!');
         $this->sayPeriodicMessage();
     }
@@ -530,6 +548,11 @@ class Match {
         ]);
         $this->say('THE MATCH IS LIVE AFTER THE NEXT RESTART!');
         $this->say('GL & HF EVERYBODY');
+        Tasker::add(11, function() {
+            $this->say('MATCH IS LIVE!');
+            $this->say('MATCH IS LIVE!');
+            $this->say('MATCH IS LIVE!');
+        });
     }
 
     /**
@@ -537,7 +560,7 @@ class Match {
      * @param string $message
      */
     public function say($message) {
-        $this->rcon('say [BL-BOT] ' . $message);
+        $this->rcon('say [BL-BOT] ' . str_replace(';', '', $message));
     }
 
     /**
@@ -546,7 +569,8 @@ class Match {
      * @return string rcon return output
      */
     public function rcon($rcon) {
-        if (explode(' ', trim($rcon))[0] !== 'say') {
+        $cmd = explode(' ', trim($rcon))[0];
+        if (!in_array($cmd, ['say', 'mp_warmup_pausetimer'])) {
             $this->log('rcon executed: ' . $rcon, true);
         }
         return $this->rcon->rcon($rcon);
@@ -626,7 +650,7 @@ class Match {
 
         if (file_get_contents($this->match_data->getUrl(), false, $context) === false) {
             $this->log('report failed, try again later');
-            Takser::add(60, [$this, __METHOD__], [$post_data]);
+            Tasker::add(60, [$this, __METHOD__], [$post_data]);
         }
     }
 

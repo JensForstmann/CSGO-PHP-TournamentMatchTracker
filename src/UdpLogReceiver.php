@@ -50,7 +50,7 @@ class UdpLogReceiver {
                 Log::warning('Stream select error within ' . __CLASS__);
             }
             if (count($read) === 1) {
-                $packet = stream_socket_recvfrom($this->fp, 8192, 0, $peer); // @todo: check if it still works if two packets arrive at the same time
+                $packet = stream_socket_recvfrom($this->fp, 8192, 0, $peer);
                 if (!isset($packets[$peer])) {
                     $packets[$peer] = [];
                 }

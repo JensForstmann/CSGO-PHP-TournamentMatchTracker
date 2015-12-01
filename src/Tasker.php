@@ -2,7 +2,7 @@
 
 namespace TMT;
 
-class Takser {
+class Tasker {
     private static $jobs = [];
 
     public static function add($offset, callable $callable, array $parameters = []) {
@@ -16,7 +16,7 @@ class Takser {
         $time = time();
         foreach (self::$jobs as $key => $job) {
             if ($job['time'] <= $time) {
-                $job['callable']($job['parameters']);
+                call_user_func_array($job['callable'], $job['parameters']);
                 unset(self::$jobs[$key]);
             }
         }

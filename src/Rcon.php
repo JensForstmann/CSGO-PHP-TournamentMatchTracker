@@ -160,7 +160,8 @@ class Rcon {
         $this->send('', -20);
 
         $answer = '';
-        while (true) {
+        $maxtries = 100;
+        for ($n = 0; $n < $maxtries; $n++) {
             $packet = $this->getResponse();
             if ($packet === false) {
                 echo 'RCON connection lost, reconnect and relogin...';
@@ -172,5 +173,6 @@ class Rcon {
             }
             $answer .= $packet['body'];
         }
+        return '';
     }
 }
