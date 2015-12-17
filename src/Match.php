@@ -33,7 +33,7 @@ class Match {
     const PAUSE = 'PAUSE';
 
     private $allowed_commands = [
-        'anytime' => ['help', 'fullhelp', 'dev'], // @todo remove dev command
+        'anytime' => ['help', 'fullhelp'],
         self::MAP_ELECTION => ['map', 'veto'],
         self::MAP_CHANGE => [],
         self::WARMUP => ['ready', 'unready'],
@@ -321,12 +321,6 @@ class Match {
                 break;
             case 'switch':
                 $this->commandSwitch($team);
-                break;
-            case 'dev': // @todo remove this dev block
-                $this->say('status: ' . $this->match_status);
-                $this->say($this->getTeamPrint('CT') . ': ' . $this->score['CT']);
-                $this->say($this->getTeamPrint('T') . ': ' . $this->score['T']);
-                $this->say('ME: ' . $name . ' @ ' . $this->getTeamPrint($team));
                 break;
             default:
                 $this->say('THIS COMMAND IS NOT IMPLEMENTED YET!');
@@ -639,6 +633,10 @@ class Match {
      * @param array $post_data
      */
     public function report(array $post_data) {
+        if (empty($this->match_data->getUrl())) {
+            return;
+        }
+
         $this->log('report: ' . json_encode($post_data));
 
         $options = ['http' => [
@@ -650,7 +648,7 @@ class Match {
 
         if (file_get_contents($this->match_data->getUrl(), false, $context) === false) {
             $this->log('report failed, try again later');
-            Tasker::add(60, [$this, __METHOD__], [$post_data]);
+            Tasker::add(60, [$this, __METHOD__], [$post_data]); // @todo add a counter to limit the number of attempts, maybe increase time between two tries
         }
     }
 
