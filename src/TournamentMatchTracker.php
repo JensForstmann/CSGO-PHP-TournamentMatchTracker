@@ -80,7 +80,13 @@ class TournamentMatchTracker {
                     $this->tcp_server->disconnectClient($client);
                     try {
                         Log::debug('create new match with the following data: ' . $match_data->getJsonString());
-                        $this->matches[] = new Match($match_data, $this->arg['udp-ip'] . ':' . $this->arg['udp-port']);
+                        $match_id = $match_data->getMatchId();
+                        if (isset($this->matches[$match_id])) {
+                            Log::info('match with id ' . $match_id . ' already exists, abort it first');
+                            $this->matches[$match_id]->abort();
+                            Log::info('now create the new match');
+                        }
+                        $this->matches[$match_id] = new Match($match_data, $this->arg['udp-ip'] . ':' . $this->arg['udp-port']);
                     } catch (\Exception $e) {
                         Log::warning('Error creating match: ' . $e->getMessage());
                     }
@@ -91,7 +97,7 @@ class TournamentMatchTracker {
             $log_packets = $this->udp_log_receiver->getNewPackets();
 
             // watch all matches
-            foreach ($this->matches as $key => $match) {
+            foreach ($this->matches as $match_id => $match) {
                 try {
                     $match_ip_port = $match->getMatchData()->getIpPort();
                     $match_log_packets = [];
@@ -100,10 +106,10 @@ class TournamentMatchTracker {
                     }
                     $match->doWork($match_log_packets);
                 } catch (\Exception $e) {
-                    Log::warning('while doing work for match ' . $match->getMatchId() . ' an exception was thrown: ' . $e->getMessage());
+                    Log::warning('while doing work for match ' . $match->getMatchData()->getMatchId() . ' an exception was thrown: ' . $e->getMessage());
                 }
                 if ($match->getMatchStatus() === Match::END) {
-                    unset($this->matches[$key]);
+                    unset($this->matches[$match_id]);
                 }
             }
 

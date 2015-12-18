@@ -117,7 +117,7 @@ class Match {
         $this->rcon('sv_logfile 0');
         $this->rcon('logaddress_add ' . $udp_log_ip_port);
         $this->rcon('log on');
-        $this->rcon('sv_password ' . $this->match_data->getPassword());
+        $this->rcon('sv_password ' . $match_data->getPassword());
         $this->rcon('mp_teamname_1 "' . $this->getTeamName('CT') . '"');
         $this->rcon('mp_teamname_2 "' . $this->getTeamName('T') . '"');
         $this->rcon('changelevel ' . $match_data->getDefaultMap());
@@ -354,6 +354,9 @@ class Match {
         }
     }
 
+    /**
+     * Ends the match. Call the report method to transfer the result. Do some cleaning stuff.
+     */
     private function endMatch() {
         $this->log('match end');
         $this->match_status = self::END;
@@ -368,8 +371,7 @@ class Match {
             'team2score' => $this->score['T']
         ]);
 
-        $this->log('disable udp logging');
-        $this->rcon('logaddress_del ' . $this->udp_log_ip_port);
+        $this->disableUDPLogging();
 
         switch(strtolower($this->match_data->getMatchEnd())) {
             case 'kick':
@@ -393,6 +395,22 @@ class Match {
             default:
                 $this->log('match end action is not supported:' . $this->match_data->getMatchEnd());
         }
+    }
+
+    /**
+     * Abort the message. This means to disable the udp logging. (And write a log message.)
+     */
+    public function abort() {
+        $this->log('abort match');
+        $this->disableUDPLogging();
+    }
+
+    /**
+     * Disable the udp logging.
+     */
+    private function disableUDPLogging() {
+        $this->log('disable udp logging');
+        $this->rcon('logaddress_del ' . $this->udp_log_ip_port);
     }
 
     /**
