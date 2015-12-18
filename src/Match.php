@@ -662,11 +662,15 @@ class Match {
             'method'  => 'POST',
             'content' => http_build_query($post_data)]];
 
-        $context  = stream_context_create($options);
+        $context = stream_context_create($options);
 
-        if (file_get_contents($this->match_data->getUrl(), false, $context) === false) {
+        $ret = file_get_contents($this->match_data->getUrl(), false, $context);
+
+        if ($ret === false) {
             $this->log('report failed, try again later');
             Tasker::add(60, [$this, __METHOD__], [$post_data]); // @todo add a counter to limit the number of attempts, maybe increase time between two tries
+        } else {
+            $this->log('report returns: ' . trim($ret));
         }
     }
 

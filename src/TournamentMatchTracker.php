@@ -64,6 +64,22 @@ class TournamentMatchTracker {
         }
     }
 
+    private function getMatchById($match_id) {
+        if (isset($this->matches[$match_id])) {
+            return $this->matches[$match_id];
+        }
+        return false;
+    }
+
+    private function getMatchByIpPort($match_ip_port) {
+        foreach ($this->matches as $match) {
+            if ($match->getMatchData()->getIpPort() === $match_ip_port) {
+                return $match;
+            }
+        }
+        return false;
+    }
+
     /**
      * Main program loop.
      *
@@ -79,13 +95,24 @@ class TournamentMatchTracker {
                 if ($match_data->setFieldsFromJsonString($buffer) === true) {
                     $this->tcp_server->disconnectClient($client);
                     try {
-                        Log::debug('create new match with the following data: ' . $match_data->getJsonString());
+                        Log::info('create new match with the following data: ' . $match_data->getJsonString());
+
                         $match_id = $match_data->getMatchId();
-                        if (isset($this->matches[$match_id])) {
+                        $match_by_id = $this->getMatchById($match_id);
+                        if ($match_by_id !== false) {
                             Log::info('match with id ' . $match_id . ' already exists, abort it first');
-                            $this->matches[$match_id]->abort();
-                            Log::info('now create the new match');
+                            $match_by_id->abort();
+                            unset($this->matches[$match_id]);
                         }
+
+                        $match_ip_port = $match_data->getIpPort();
+                        $match_by_ip_port = $this->getMatchByIpPort($match_ip_port);
+                        if ($match_by_ip_port !== false) {
+                            Log::info('match at server ' . $match_ip_port . ' already exists, abort it first');
+                            $match_by_ip_port->abort();
+                            unset($this->matches[$match_by_ip_port->getMatchData()->getMatchId()]);
+                        }
+
                         $this->matches[$match_id] = new Match($match_data, $this->arg['udp-ip'] . ':' . $this->arg['udp-port']);
                     } catch (\Exception $e) {
                         Log::warning('Error creating match: ' . $e->getMessage());
