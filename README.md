@@ -6,20 +6,20 @@
 # START
     ./tmt.php --udp-port 9999 --udp-ip 192.168.0.13 --udp-log-ip 109.110.111.112 --tcp-port 9999 --tcp-ip 192.168.0.13
 
-`--udp-port`: Port (udp) that is used to receive logging data from gameserver.  
-`--udp-ip`: IP address for bindung the udp socket.
-`--udp-log-ip`: IP address to that gameserver will send the logging data.
-`--tcp-port`: Port (tcp) that is used to receive init data for a match.  
-`--tcp-ip`: IP address for bindung the tcp socket.
+* `--udp-port`: Port (udp) that is used to receive logging data from gameserver.
+* `--udp-ip`: IP address for bindung the udp socket.
+* `--udp-log-ip`: IP address to that gameserver will send the logging data.
+* `--tcp-port`: Port (tcp) that is used to receive init data for a match.
+* `--tcp-ip`: IP address for bindung the tcp socket.
 
 # DEFAULTS
 If a specific argument is not available, it will default to:
 
-`--udp-port`: 9999  
-`--udp-ip`: 0.0.0.0 (listen on all ips/devices)
-`--udp-log-ip`: `getHostByName(getHostName())`
-`--tcp-port`: 9999
-`--tcp-ip`: 0.0.0.0 (listen on all ips/devices)
+* `--udp-port`: 9999
+* `--udp-ip`: 0.0.0.0 (listen on all ips/devices)
+* `--udp-log-ip`: `getHostByName(getHostName())`
+* `--tcp-port`: 9999
+* `--tcp-ip`: 0.0.0.0 (listen on all ips/devices)
 
 # INIT
 The following is an example how to init a match. It must send to the script using the tcp socket.
