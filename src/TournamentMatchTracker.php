@@ -11,6 +11,9 @@ class TournamentMatchTracker {
      */
     private $tcp_server;
 
+    /**
+     * @var UdpLogReceiver
+     */
     private $udp_log_receiver;
 
     /**
@@ -30,7 +33,8 @@ class TournamentMatchTracker {
      */
     public function __construct() {
         $this->arg['udp-port'] = 9999;
-        $this->arg['udp-ip'] = getHostByName(getHostName());
+        $this->arg['udp-ip'] = '0.0.0.0';
+        $this->arg['udp-log-ip'] = getHostByName(getHostName());
         $this->arg['tcp-port'] = 9999;
         $this->arg['tcp-ip'] = '0.0.0.0';
 
@@ -45,8 +49,11 @@ class TournamentMatchTracker {
         }
     }
 
+    /**
+     * Parse the command line parameters and set the arg property.
+     */
     private function parseCommandLineParameters() {
-        // ./tmt.php --udp-port 1234 --udp-ip x.y.z.z --tcp-port 6789 --tcp-ip t.u.i.p
+        // ./tmt.php --udp-port 1234 --udp-ip a.b.c.d --udp-log-ip e.f.g.h --tcp-port 6789 --tcp-ip i.j.k.l
         global $argv, $argc;
 
         $key = null;
@@ -64,6 +71,11 @@ class TournamentMatchTracker {
         }
     }
 
+    /**
+     * Return match by match id. Returns false if no match is found.
+     * @param int $match_id
+     * @return bool|Match
+     */
     private function getMatchById($match_id) {
         if (isset($this->matches[$match_id])) {
             return $this->matches[$match_id];
@@ -71,6 +83,11 @@ class TournamentMatchTracker {
         return false;
     }
 
+    /**
+     * Return match by gameserver ip and port. Returns false if no match is found.
+     * @param string $match_ip_port
+     * @return bool|Match
+     */
     private function getMatchByIpPort($match_ip_port) {
         foreach ($this->matches as $match) {
             if ($match->getMatchData()->getIpPort() === $match_ip_port) {
@@ -113,7 +130,7 @@ class TournamentMatchTracker {
                             unset($this->matches[$match_by_ip_port->getMatchData()->getMatchId()]);
                         }
 
-                        $this->matches[$match_id] = new Match($match_data, $this->arg['udp-ip'] . ':' . $this->arg['udp-port']);
+                        $this->matches[$match_id] = new Match($match_data, $this->arg['udp-log-ip'] . ':' . $this->arg['udp-port']);
                     } catch (\Exception $e) {
                         Log::warning('Error creating match: ' . $e->getMessage());
                     }
