@@ -96,20 +96,20 @@ class Rcon {
         }
     }
 
+    /**
+     * @param string $body
+     * @param int $id
+     * @param int $type
+     * @return bool False on error. True on success.
+     */
     private function send($body, $id = 0, $type = self::SERVERDATA_EXECCOMMAND) {
         $size = strlen($body) + 10; // 4 bytes id field, 4 bytes type field, 1 null byte after data, 1 null byte packet end
         $packet = pack('l', $size) . pack('l', $id) . pack('l', $type) . $body . "\x00\x00";
-        if (!@fwrite($this->fp, $packet)) {
-            // RCON connection lost, try reconnect
-            $this->connect();
-            $this->login();
-            // resend data to RCON
-            $this->send($body, $id, $type);
-        }
+        return @fwrite($this->fp, $packet) !== false;
     }
 
     private function getResponse() {
-        for ($max_tries = 10; $max_tries > 0; $max_tries--) {
+        for ($try = 10; $try > 0; $try--) {
             $this->buffer .= fread($this->fp, 8192);
             $packet = $this->decodePacket();
             if (is_array($packet)) {
@@ -139,17 +139,15 @@ class Rcon {
     }
 
     public function rcon($command) {
-        /**
-         * Connection abort detection trick.
-         * When the connection is dropped, it may detected only at the second send.
-         * So we send an empty packet (which will cause an empty string as response).
-         * If connection drop is detected send method will reconnect, login and resend the
-         * command of the current (then second) send call.
-         *  => connection loss => empty pseudo send (no error) => command send causes error => reconnect => login => resend command
-         */
-        $this->send('', -10);
-
-        $this->send($command);
+        if ($this->send($command) === false) {
+            echo 'RCON connection lost while sending command ' . $command . PHP_EOL;
+            echo 'Reconnect...' . PHP_EOL;
+            $this->connect();
+            echo 'Relogin...' . PHP_EOL;
+            $this->login();
+            echo 'Resend command...' . PHP_EOL;
+            $this->send($command);
+        };
 
         /**
          * Multi packet response trick!
@@ -160,19 +158,24 @@ class Rcon {
         $this->send('', -20);
 
         $answer = '';
-        $maxtries = 100;
-        for ($n = 0; $n < $maxtries; $n++) {
+        for ($try = 10; $try > 0; $try--) {
             $packet = $this->getResponse();
             if ($packet === false) {
-                echo 'RCON connection lost, reconnect and relogin...';
+                echo 'RCON connection lost while getting answer from command ' . $command . PHP_EOL;
+                echo 'Reconnect...' . PHP_EOL;
                 $this->connect();
+                echo 'Relogin...' . PHP_EOL;
                 $this->login();
-            }
-            if ($packet['id'] === -20) {
+                echo 'Return empty string' . PHP_EOL;
+                return '';
+            } else if ($packet['id'] === -20) {
                 return $answer;
+            } else {
+                $answer .= $packet['body'];
             }
-            $answer .= $packet['body'];
         }
+        echo 'Too much tries for getting answer from command ' . $command . PHP_EOL;
+        echo 'Return empty string' . PHP_EOL;
         return '';
     }
 }
