@@ -621,7 +621,7 @@ class Match {
      */
     private function isHalftime($rounds_played) {
         $ot_halftime = $this->maxrounds + (max(1, $this->getOvertimeNumber($rounds_played)) - 0.5) * $this->ot_maxrounds;
-        return $rounds_played === $this->maxrounds / 2 || $rounds_played === $ot_halftime;
+        return $rounds_played === $this->maxrounds / 2 || $rounds_played === (int)$ot_halftime;
     }
 
     /**
@@ -632,7 +632,7 @@ class Match {
      */
     private function isMatchEnd($ct_score, $t_score) {
         $score_to_win = $this->maxrounds / 2 + $this->getOvertimeNumber($ct_score + $t_score) * $this->ot_maxrounds / 2 + 1;
-        return $ct_score === $score_to_win || $t_score === $score_to_win;
+        return $ct_score === (int)$score_to_win || $t_score === (int)$score_to_win;
     }
 
     /**
