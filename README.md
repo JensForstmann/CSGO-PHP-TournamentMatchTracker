@@ -33,7 +33,7 @@ The following is an example how to init a match. It must send to the script usin
             "de_inferno",
             "de_cache",
             "de_mirage",
-            "de_cbble.bsp"],
+            "de_cbble"],
     "default_map": "de_dust2",
     "match_id": 1337,
     "team1": {
