@@ -48,6 +48,10 @@ class Rcon {
      * @var string tcp stream buffer
      */
     private $buffer = '';
+    /**
+     * @var Match
+     */
+    private $match;
 
 
     /**
@@ -55,12 +59,14 @@ class Rcon {
      * @param string $ip
      * @param int $port
      * @param string $password
+     * @param Match $match
      * @throws \Exception
      */
-    public function __construct($ip, $port, $password) {
+    public function __construct($ip, $port, $password, Match $match) {
         $this->ip = $ip;
         $this->port = $port;
         $this->password = $password;
+        $this->match = $match;
 
         $this->connect();
         $this->login();
@@ -68,6 +74,7 @@ class Rcon {
 
     /**
      * Connects to the query port.
+     * @throws \Exception
      */
     private function connect() {
         $this->fp = stream_socket_client('tcp://' . $this->ip . ':' . $this->port, $errno, $errstr);
@@ -81,6 +88,7 @@ class Rcon {
 
     /**
      * Authenticates with the password.
+     * @throws \Exception
      */
     private function login() {
         $this->send($this->password, 0, self::SERVERDATA_AUTH);
@@ -139,15 +147,31 @@ class Rcon {
     }
 
     public function rcon($command) {
-        if ($this->send($command) === false) {
-            echo 'RCON connection lost while sending command ' . $command . PHP_EOL;
-            echo 'Reconnect...' . PHP_EOL;
-            $this->connect();
-            echo 'Relogin...' . PHP_EOL;
-            $this->login();
-            echo 'Resend command...' . PHP_EOL;
-            $this->send($command);
-        };
+        for ($try = 10; $try > 0; $try--) {
+            if ($this->send($command) === false) {
+                try {
+                    $this->match->log('RCON: connection lost while sending command ' . $command);
+                    usleep(1000 * 1000); // 1 s
+                    $this->match->log('RCON: reconnect...');
+                    $this->connect();
+                    $this->match->log('RCON: relogin...');
+                    $this->login();
+                    if ($try > 1) {
+                        $this->match->log('RCON: resend command...');
+                    }
+                } catch (\Exception $e) {
+                    $this->match->log('Failed: ' . $e->getMessage());
+                }
+            } else {
+                $try = -1; // sending was successful
+            }
+        }
+
+        if ($try === 0) {
+            $this->match->log('RCON: too much tries for sending command ' . $command);
+            $this->match->log('RCON: return empty string');
+            return '';
+        }
 
         /**
          * Multi packet response trick!
@@ -161,21 +185,25 @@ class Rcon {
         for ($try = 10; $try > 0; $try--) {
             $packet = $this->getResponse();
             if ($packet === false) {
-                echo 'RCON connection lost while getting answer from command ' . $command . PHP_EOL;
-                echo 'Reconnect...' . PHP_EOL;
-                $this->connect();
-                echo 'Relogin...' . PHP_EOL;
-                $this->login();
-                echo 'Return empty string' . PHP_EOL;
-                return '';
+                try {
+                    $this->match->log('RCON: connection lost while getting answer from command ' . $command);
+                    $this->match->log('RCON: reconnect...');
+                    $this->connect();
+                    $this->match->log('RCON: relogin...');
+                    $this->login();
+                    $this->match->log('RCON: return empty string');
+                    return '';
+                } catch (\Exception $e) {
+                    $this->match->log('Failed: ' . $e->getMessage());
+                }
             } else if ($packet['id'] === -20) {
                 return $answer;
             } else {
                 $answer .= $packet['body'];
             }
         }
-        echo 'Too much tries for getting answer from command ' . $command . PHP_EOL;
-        echo 'Return empty string' . PHP_EOL;
+        $this->match->log('RCON: too much tries for getting answer from command ' . $command);
+        $this->match->log('RCON: return empty string');
         return '';
     }
 }

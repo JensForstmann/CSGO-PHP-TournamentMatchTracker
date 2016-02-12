@@ -102,13 +102,14 @@ class Match {
      * Constructs a match to observe and control it.
      * @param MatchData $match_data
      * @param string $udp_log_ip_port IP:port of the udp log receiver.
+     * @throws \Exception
      */
     public function __construct($match_data, $udp_log_ip_port) {
         $this->match_data = $match_data;
 
         $this->udp_log_ip_port = $udp_log_ip_port;
 
-        $this->rcon = new Rcon($match_data->getIp(), $match_data->getPort(), $match_data->getRcon());
+        $this->rcon = new Rcon($match_data->getIp(), $match_data->getPort(), $match_data->getRcon(), $this);
 
         $this->map_election = new MapElection($match_data->getPickmode(), $match_data->getMapPool(), $this);
 
