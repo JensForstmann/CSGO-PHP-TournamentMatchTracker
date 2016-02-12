@@ -40,9 +40,20 @@ class TournamentMatchTracker {
 
         $this->parseCommandLineParameters();
 
+        Log::info('started tournament match tracker (tmt) with the following parameters:');
+        Log::info('  --udp-port ' . $this->arg['udp-port']);
+        Log::info('  --udp-ip ' . $this->arg['udp-ip']);
+        Log::info('  --udp-log-ip ' . $this->arg['udp-log-ip']);
+        Log::info('  --tcp-port ' . $this->arg['tcp-port']);
+        Log::info('  --tcp-ip ' . $this->arg['tcp-ip']);
+
         try {
+            Log::info('starting tcp server...');
             $this->tcp_server = new TcpServer($this->arg['tcp-ip'], $this->arg['tcp-port']);
+            Log::info('tcp server started');
+            Log::info('starting udp log receiver...');
             $this->udp_log_receiver = new UdpLogReceiver($this->arg['udp-ip'], $this->arg['udp-port']);
+            Log::info('udp log receiver started');
         } catch (\Exception $e) {
             Log::error($e->getMessage());
             exit(100);
@@ -104,6 +115,7 @@ class TournamentMatchTracker {
      * Furthermore at all match objects the doWork method is called to observe the match and react to it.
      */
     public function loop() {
+        Log::info('start working...');
         while (true) {
             // check incoming tcp traffic to start new matches
             $buffers = $this->tcp_server->getAllBuffers();
