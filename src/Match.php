@@ -514,6 +514,7 @@ class Match {
     private function commandStay($team) {
         if ($team === $this->knife_winner) {
             $this->log($this->getTeamPrint($team) . ' wants to stay');
+            $this->say($this->getTeamPrint($team) . ' WANTS TO STAY');
             $this->startMatch();
         }
     }
@@ -525,6 +526,7 @@ class Match {
     private function commandSwitch($team) {
         if ($team === $this->knife_winner) {
             $this->log($this->getTeamPrint($team) . ' wants to switch sides');
+            $this->say($this->getTeamPrint($team) . ' WANTS TO SWITCH SIDES');
             $this->switchTeamInternals();
             $this->rcon('mp_swapteams');
             $this->startMatch();
