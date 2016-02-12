@@ -661,6 +661,7 @@ class Match {
         $options = ['http' => [
             'header'  => "Content-type: application/x-www-form-urlencoded\r\n",
             'method'  => 'POST',
+            'timeout' => 10,
             'content' => http_build_query($post_data)]];
 
         $context = stream_context_create($options);
@@ -669,7 +670,7 @@ class Match {
 
         if ($ret === false) {
             $this->log('report failed, try again later');
-            Tasker::add(60, [$this, __METHOD__], [$post_data]); // @todo add a counter to limit the number of attempts, maybe increase time between two tries
+            Tasker::add(180, [$this, __METHOD__], [$post_data]); // @todo add a counter to limit the number of attempts, maybe increase time between two tries
         } else {
             $this->log('report returns: ' . trim($ret));
         }
