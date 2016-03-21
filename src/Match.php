@@ -72,7 +72,7 @@ class Match {
      * Max rounds in overtime to calculate halftime and match end.
      * @var int
      */
-    private $ot_maxrounds = 10; // @todo read that from rcon after loading config
+    private $ot_maxrounds = 6; // @todo read that from rcon after loading config
 
     /**
      * Time of the last periodic message.
