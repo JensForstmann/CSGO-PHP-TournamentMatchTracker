@@ -79,6 +79,11 @@ class MatchData {
     private $match_end;
 
     /**
+     * @var string[]
+     */
+    private $rcon_bootstrap;
+
+    /**
      * @var string
      */
     private $json_string;
@@ -104,6 +109,7 @@ class MatchData {
             && isset($o->pickmode)
             && isset($o->url)
             && isset($o->match_end)
+            && isset($o->rcon_bootstrap) && is_array($o->rcon_bootstrap)
         ) {
             $this->map_pool = $o->map_pool;
             $this->default_map = $o->default_map;
@@ -120,6 +126,7 @@ class MatchData {
             $this->pickmode = $o->pickmode;
             $this->url = $o->url;
             $this->match_end = $o->match_end;
+            $this->rcon_bootstrap = $o->rcon_bootstrap;
 
             $this->json_string = json_encode($o);
 
@@ -232,6 +239,13 @@ class MatchData {
      */
     public function getMatchEnd() {
         return $this->match_end;
+    }
+
+    /**
+     * @return \string[]
+     */
+    public function getRconBootstrap() {
+        return $this->rcon_bootstrap;
     }
 
     /**

@@ -123,6 +123,10 @@ class Match {
         $this->rcon('mp_teamname_2 "' . $this->getTeamName('T') . '"');
         $this->rcon('changelevel ' . $match_data->getDefaultMap());
 
+        foreach ($match_data->getRconBootstrap() as $rcon_bootstrap) {
+            $this->rcon($rcon_bootstrap);
+        }
+
         $this->log('match created');
     }
 
@@ -655,6 +659,7 @@ class Match {
      */
     public function report(array $post_data) {
         if (empty($this->match_data->getUrl())) {
+            $this->log('report url is empty, so no reporting at all', true);
             return;
         }
 

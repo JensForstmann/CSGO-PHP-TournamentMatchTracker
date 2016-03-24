@@ -143,6 +143,8 @@ class TournamentMatchTracker {
                         }
 
                         $this->matches[$match_id] = new Match($match_data, $this->arg['udp-log-ip'] . ':' . $this->arg['udp-port']);
+
+                        Log::info('now watching ' . count($this->matches) . ' matches');
                     } catch (\Exception $e) {
                         Log::warning('Error creating match: ' . $e->getMessage());
                     }
@@ -166,6 +168,7 @@ class TournamentMatchTracker {
                 }
                 if ($match->getMatchStatus() === Match::END) {
                     unset($this->matches[$match_id]);
+                    Log::info('now watching ' . count($this->matches) . ' matches');
                 }
             }
 

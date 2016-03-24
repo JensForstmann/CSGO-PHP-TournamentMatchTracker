@@ -49,7 +49,10 @@ The following is an example how to init a match. It must send to the script usin
     "config": "esl5on5.cfg",
     "pickmode": "bo1random",
     "url": "https://www.bieberlan.de/api/turniere/csgo.php?token=abcdefg",
-    "match_end": "kick"
+    "match_end": "kick",
+    "rcon_bootstrap": [
+        "sv_downloadurl \"http://www.bieberlan.de/stuff/csgo\"",
+        "hostname \"MATCH: Team NixMacher vs. Bobs Bau-Verein\""]
 }
 ```
 
@@ -57,6 +60,7 @@ Notes:
 * `map_pool`: array of strings
 * `pickmode`: (string) `agree`, `bo1` or `bo1random`
 * `matchend`: (string) `kick`, `quit` or `none`
+* `rcon_bootstrap`: array of strings (can be an empty array), rcon commands will be executed once after the rcon connection is established
 
 # REPORTS
 The tool will report events to the url (given in the init data):
