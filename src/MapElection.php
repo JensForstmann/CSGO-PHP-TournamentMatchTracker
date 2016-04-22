@@ -8,9 +8,11 @@ class MapElection {
      * @var string
      */
     private $mode;
+    const DEFAULT_MAP = 'DEFAULT_MAP';
     const AGREE = 'AGREE';
     const BO1 = 'BO1';
     const BO1RANDOM = 'BO1RANDOM';
+    const BO1RANDOMAGREE = 'BO1RANDOMAGREE';
 
     /**
      * @var string[]

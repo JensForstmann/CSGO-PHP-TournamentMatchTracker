@@ -11,6 +11,7 @@
 * `--udp-log-ip`: IP address to that gameserver will send the logging data. (May be a public IP.)
 * `--tcp-port`: Port (tcp) that is used to receive init data for a match.
 * `--tcp-ip`: IP address for bindung the tcp socket. (May be a local IP behind router/firewall/NAT).
+* `--token`: String that have to be the same as in the json init data to accept the job.
 
 # DEFAULTS
 If a specific argument is not available, it will default to:
@@ -20,12 +21,14 @@ If a specific argument is not available, it will default to:
 * `--udp-log-ip`: `getHostByName(getHostName())` (Not reliable!)
 * `--tcp-port`: 9999
 * `--tcp-ip`: 0.0.0.0 (listen on all ips/devices)
+* `--token`: "" (empty string)
 
 # INIT
 The following is an example how to init a match. It must send to the script using the tcp socket.
 
 ```
 {
+    "token": "somesecurity",
     "map_pool": [
             "de_dust2",
             "de_train",
@@ -45,25 +48,35 @@ The following is an example how to init a match. It must send to the script usin
     "ip": "10.22.33.44",
     "port": 27500,
     "rcon": "rcon_password",
-    "password": "server_password",
-    "config": "esl5on5.cfg",
     "pickmode": "bo1random",
-    "url": "https://www.bieberlan.de/api/turniere/csgo.php?token=abcdefg",
+    "url": "https://www.example.org/api/csgo.php?token=abcdefg",
     "match_end": "kick",
-    "rcon_bootstrap": [
-        "sv_downloadurl \"http://www.bieberlan.de/stuff/csgo\"",
-        "hostname \"MATCH: Team NixMacher vs. Bobs Bau-Verein\""]
+    "rcon_init": [
+        "hostname \"MATCH: Team NixMacher vs. Bobs Bau-Verein\"",
+        "sv_password strenggeheim"
+    ],
+    "rcon_config": [
+        "mp_autokick 0",
+        "mp_autoteambalance 0;mp_buytime 15"
+    ],
+    "rcon_end": [
+        "hostname \"empty server\"",
+        "sv_password nochgeheimer"
+    ]
 }
 ```
 
 Notes:
+* `token`: (string) kind of password that have to match the command line parameter
 * `map_pool`: array of strings
-* `pickmode`: (string) `agree`, `bo1` or `bo1random`
-* `matchend`: (string) `kick`, `quit` or `none`
-* `rcon_bootstrap`: array of strings (can be an empty array), rcon commands will be executed once after the rcon connection is established
+* `pickmode`: (string) `default_map`, `agree`, `bo1`, `bo1random` or `bo1randomagree` (the last will offer both the !veto and the !map commands)
+* `match_end`: (string) `kick`, `quit` or `none`
+* `rcon_init`: array of strings, rcon commands will be executed once after the rcon connection is established
+* `rcon_config`: array of strings, rcon commands will be executed twice (before knife round and before match start)
+* `rcon_end`: array of strings, rcon commands will be executed three minutes after match end (right before match_end action)
 
 # REPORTS
-The tool will report events to the url (given in the init data):
+The tool will report events to the url (if given in the init data):
 
 * elected map
 ```
@@ -76,6 +89,16 @@ $_POST['map'] = 'de_mirage';
 ```
 $_POST['match_id'] = 1337;
 $_POST['type'] = 'start';
+```
+
+* livescore
+```
+$_POST['match_id'] = 1337;
+$_POST['type'] = 'livescore';
+$_POST['team1id'] = 13;
+$_POST['team1score'] = 16;
+$_POST['team2id'] = 37;
+$_POST['team2score'] = 12;
 ```
 
 * score after match end

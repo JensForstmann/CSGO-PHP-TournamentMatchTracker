@@ -4,6 +4,11 @@ namespace TMT;
 
 class MatchData {
     /**
+     * @var string
+     */
+    private $token;
+
+    /**
      * @var string[]
      */
     private $map_pool;
@@ -56,16 +61,6 @@ class MatchData {
     /**
      * @var string
      */
-    private $password;
-
-    /**
-     * @var string
-     */
-    private $config;
-
-    /**
-     * @var string
-     */
     private $pickmode;
 
     /**
@@ -81,7 +76,17 @@ class MatchData {
     /**
      * @var string[]
      */
-    private $rcon_bootstrap;
+    private $rcon_init;
+
+    /**
+     * @var string[]
+     */
+    private $rcon_config;
+
+    /**
+     * @var string[]
+     */
+    private $rcon_end;
 
     /**
      * @var string
@@ -96,6 +101,7 @@ class MatchData {
     public function setFieldsFromJsonString($json_string) {
         $o = json_decode($json_string);
         if (true
+            && isset($o->token)
             && isset($o->map_pool) && is_array($o->map_pool)
             && isset($o->default_map)
             && isset($o->match_id)
@@ -104,13 +110,14 @@ class MatchData {
             && isset($o->ip)
             && isset($o->port)
             && isset($o->rcon)
-            && isset($o->password)
-            && isset($o->config)
             && isset($o->pickmode)
             && isset($o->url)
             && isset($o->match_end)
-            && isset($o->rcon_bootstrap) && is_array($o->rcon_bootstrap)
+            && isset($o->rcon_init) && is_array($o->rcon_init)
+            && isset($o->rcon_config) && is_array($o->rcon_config)
+            && isset($o->rcon_end) && is_array($o->rcon_end)
         ) {
+            $this->token = $o->token;
             $this->map_pool = $o->map_pool;
             $this->default_map = $o->default_map;
             $this->match_id = $o->match_id;
@@ -121,19 +128,25 @@ class MatchData {
             $this->ip = $o->ip;
             $this->port = $o->port;
             $this->rcon = $o->rcon;
-            $this->password = $o->password;
-            $this->config = $o->config;
             $this->pickmode = $o->pickmode;
             $this->url = $o->url;
             $this->match_end = $o->match_end;
-            $this->rcon_bootstrap = $o->rcon_bootstrap;
-
+            $this->rcon_init = $o->rcon_init;
+            $this->rcon_config = $o->rcon_config;
+            $this->rcon_end = $o->rcon_end;
             $this->json_string = json_encode($o);
 
             return true;
         }
 
         return false;
+    }
+
+    /**
+     * @return string
+     */
+    public function getToken() {
+        return $this->token;
     }
 
     /**
@@ -209,20 +222,6 @@ class MatchData {
     /**
      * @return string
      */
-    public function getPassword() {
-        return $this->password;
-    }
-
-    /**
-     * @return string
-     */
-    public function getConfig() {
-        return $this->config;
-    }
-
-    /**
-     * @return string
-     */
     public function getPickmode() {
         return $this->pickmode;
     }
@@ -244,8 +243,22 @@ class MatchData {
     /**
      * @return \string[]
      */
-    public function getRconBootstrap() {
-        return $this->rcon_bootstrap;
+    public function getRconInit() {
+        return $this->rcon_init;
+    }
+
+    /**
+     * @return \string[]
+     */
+    public function getRconConfig() {
+        return $this->rcon_config;
+    }
+
+    /**
+     * @return \string[]
+     */
+    public function getRconEnd() {
+        return $this->rcon_end;
     }
 
     /**

@@ -37,6 +37,7 @@ class TournamentMatchTracker {
         $this->arg['udp-log-ip'] = getHostByName(getHostName());
         $this->arg['tcp-port'] = 9999;
         $this->arg['tcp-ip'] = '0.0.0.0';
+        $this->arg['token'] = '';
 
         $this->parseCommandLineParameters();
 
@@ -46,6 +47,7 @@ class TournamentMatchTracker {
         Log::info('  --udp-log-ip ' . $this->arg['udp-log-ip']);
         Log::info('  --tcp-port ' . $this->arg['tcp-port']);
         Log::info('  --tcp-ip ' . $this->arg['tcp-ip']);
+        Log::info('  --token ' . $this->arg['token']);
 
         try {
             Log::info('starting tcp server...');
@@ -123,30 +125,34 @@ class TournamentMatchTracker {
                 $match_data = new MatchData();
                 if ($match_data->setFieldsFromJsonString($buffer) === true) {
                     $this->tcp_server->disconnectClient($client);
-                    try {
-                        Log::info('create new match with the following data: ' . $match_data->getJsonString());
+                    if ($match_data->getToken() !== $this->arg['token']) {
+                        Log::warning('wrong token given in match data (' . $match_data->getToken() . '), ignore the match init');
+                    } else {
+                        try {
+                            Log::info('create new match with the following data: ' . $match_data->getJsonString());
 
-                        $match_id = $match_data->getMatchId();
-                        $match_by_id = $this->getMatchById($match_id);
-                        if ($match_by_id !== false) {
-                            Log::info('match with id ' . $match_id . ' already exists, abort it first');
-                            $match_by_id->abort();
-                            unset($this->matches[$match_id]);
+                            $match_id = $match_data->getMatchId();
+                            $match_by_id = $this->getMatchById($match_id);
+                            if ($match_by_id !== false) {
+                                Log::info('match with id ' . $match_id . ' already exists, abort it first');
+                                $match_by_id->abort();
+                                unset($this->matches[$match_id]);
+                            }
+
+                            $match_ip_port = $match_data->getIpPort();
+                            $match_by_ip_port = $this->getMatchByIpPort($match_ip_port);
+                            if ($match_by_ip_port !== false) {
+                                Log::info('match at server ' . $match_ip_port . ' already exists, abort it first');
+                                $match_by_ip_port->abort();
+                                unset($this->matches[$match_by_ip_port->getMatchData()->getMatchId()]);
+                            }
+
+                            $this->matches[$match_id] = new Match($match_data, $this->arg['udp-log-ip'] . ':' . $this->arg['udp-port']);
+
+                            Log::info('now watching ' . count($this->matches) . ' matches');
+                        } catch (\Exception $e) {
+                            Log::warning('Error creating match: ' . $e->getMessage());
                         }
-
-                        $match_ip_port = $match_data->getIpPort();
-                        $match_by_ip_port = $this->getMatchByIpPort($match_ip_port);
-                        if ($match_by_ip_port !== false) {
-                            Log::info('match at server ' . $match_ip_port . ' already exists, abort it first');
-                            $match_by_ip_port->abort();
-                            unset($this->matches[$match_by_ip_port->getMatchData()->getMatchId()]);
-                        }
-
-                        $this->matches[$match_id] = new Match($match_data, $this->arg['udp-log-ip'] . ':' . $this->arg['udp-port']);
-
-                        Log::info('now watching ' . count($this->matches) . ' matches');
-                    } catch (\Exception $e) {
-                        Log::warning('Error creating match: ' . $e->getMessage());
                     }
                 }
             }

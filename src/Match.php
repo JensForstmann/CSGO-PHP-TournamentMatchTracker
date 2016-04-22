@@ -118,14 +118,12 @@ class Match {
         $this->rcon('sv_logfile 0');
         $this->rcon('logaddress_add ' . $udp_log_ip_port);
         $this->rcon('log on');
-        $this->rcon('sv_password ' . $match_data->getPassword());
         $this->rcon('mp_teamname_1 "' . $this->getTeamName('CT') . '"');
         $this->rcon('mp_teamname_2 "' . $this->getTeamName('T') . '"');
-        $this->rcon('changelevel ' . $match_data->getDefaultMap());
-
-        foreach ($match_data->getRconBootstrap() as $rcon_bootstrap) {
-            $this->rcon($rcon_bootstrap);
+        foreach ($match_data->getRconInit() as $rcon_init) {
+            $this->rcon($rcon_init);
         }
+        $this->rcon('changelevel ' . $match_data->getDefaultMap()); // execute this after rcon_init because changelevel could cause rcon connection loss for a little moment
 
         $this->log('match created');
     }
@@ -351,6 +349,15 @@ class Match {
             $this->rcon('mp_pause_match');
             $this->sayPeriodicMessage();
         } else if ($this->match_status === self::MATCH) {
+            // report livescorse
+            $this->report([
+                'match_id' => $this->getMatchData()->getMatchId(),
+                'type' => 'livescore',
+                'team1id' => $this->getTeamId('CT'),
+                'team1score' => $this->score['CT'],
+                'team2id' => $this->getTeamId('T'),
+                'team2score' => $this->score['T']
+            ], false);
             if ($this->isHalftime($ct_score + $t_score)) {
                 $this->switchTeamInternals();
             } else if ($this->isMatchEnd($ct_score, $t_score)) {
@@ -378,6 +385,13 @@ class Match {
 
         $this->disableUDPLogging();
 
+        Tasker::add(180, function() {
+            $this->log('execute rcon_end commands');
+            foreach ($this->match_data->getRconEnd() as $rcon_end) {
+                $this->rcon($rcon_end);
+            }
+        });
+
         switch(strtolower($this->match_data->getMatchEnd())) {
             case 'kick':
                 Tasker::add(180, function() {
@@ -392,8 +406,10 @@ class Match {
                 });
                 break;
             case 'quit':
-                $this->log('quit server');
-                $this->rcon('quit');
+                Tasker::add(180, function() {
+                    $this->log('quit server');
+                    $this->rcon('quit');
+                });
                 break;
             case 'none':
                 break;
@@ -543,7 +559,9 @@ class Match {
     private function startKniferound() {
         $this->log('start knife round');
         $this->match_status = self::KNIFE;
-        $this->rcon('exec ' . $this->match_data->getConfig());
+        foreach ($this->match_data->getRconConfig() as $rcon_config) {
+            $this->rcon($rcon_config);
+        }
         $this->rcon('mp_warmup_end');
         $this->rcon('mp_restartgame 3');
         $this->say('--------------------------------------');
@@ -559,7 +577,9 @@ class Match {
         $this->match_status = self::MATCH;
         $this->score = ['CT' => 0, 'T' => 0];
         $this->rcon('mp_unpause_match');
-        $this->rcon('exec ' . $this->match_data->getConfig());
+        foreach ($this->match_data->getRconConfig() as $rcon_config) {
+            $this->rcon($rcon_config);
+        }
         $this->rcon('mp_restartgame 10');
         $this->report([
             'match_id' => $this->match_data->getMatchId(),
@@ -656,8 +676,9 @@ class Match {
     /**
      * Posts data to the match data url (HTTP POST).
      * @param array $post_data
+     * @param bool $retry_on_error If true the report will be retried automatically after 180 seconds.
      */
-    public function report(array $post_data) {
+    public function report(array $post_data, $retry_on_error = true) {
         if (empty($this->match_data->getUrl())) {
             $this->log('report url is empty, so no reporting at all', true);
             return;
@@ -676,8 +697,11 @@ class Match {
         $ret = file_get_contents($this->match_data->getUrl(), false, $context);
 
         if ($ret === false) {
-            $this->log('report failed, try again later');
-            Tasker::add(180, [$this, __METHOD__], [$post_data]); // @todo add a counter to limit the number of attempts, maybe increase time between two tries
+            $this->log('report failed');
+            if ($retry_on_error) {
+                $this->log('retry report in 180 seconds');
+                Tasker::add(180, [$this, __METHOD__], [$post_data]); // @todo add a counter to limit the number of attempts, maybe increase time between two tries
+            }
         } else {
             $this->log('report returns: ' . trim($ret));
         }

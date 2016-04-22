@@ -8,7 +8,7 @@ if (version_compare(PHP_VERSION, '5.4.0', '<')) {
 }
 
 // check php extensions
-$needed_extensions = array('json');
+$needed_extensions = array('json', 'openssl');
 $missing_extensions = array();
 foreach ($needed_extensions as $needed_extension) {
     if (!extension_loaded($needed_extension)) {
@@ -26,7 +26,7 @@ function __autoload($class_name) {
     require_once('src/' . implode('/', $parts) . '.php');
 }
 
-// suppress php's warning of relying on the default timezone bla bla
+// suppress php's warning of relying on the default timezone
 date_default_timezone_set('Europe/Berlin');
 
 // run the actual program
