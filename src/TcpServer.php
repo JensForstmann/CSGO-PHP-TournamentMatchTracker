@@ -52,7 +52,7 @@ class TcpServer {
 
     /**
      * Returns false on stream_select error.
-     * But in normal case it returns and associative array with 'ip:port' strings as keys and all ingoing tcp traffic as value.
+     * But in normal case it returns an associative array with 'ip:port' strings as keys and all ingoing tcp traffic as value.
      * @return bool|\string[]
      */
     public function getAllBuffers() {

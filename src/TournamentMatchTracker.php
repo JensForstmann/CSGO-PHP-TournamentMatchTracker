@@ -3,7 +3,7 @@
 namespace TMT;
 
 /**
- * The OvalOffice holds all matches that are going on and waits for new matches to start.
+ * The TournamentMatchTracker object holds all matches that are going on and waits for matches to start/stop.
  */
 class TournamentMatchTracker {
     /**
@@ -28,13 +28,13 @@ class TournamentMatchTracker {
     private $arg = [];
 
     /**
-     * Constructs the oval office.
+     * Constructs the tournament match tracker.
      * In fact, that's only a tcp server waiting for requests.
      */
     public function __construct() {
         $this->arg['udp-port'] = 9999;
         $this->arg['udp-ip'] = '0.0.0.0';
-        $this->arg['udp-log-ip'] = getHostByName(getHostName());
+        $this->arg['udp-log-ip'] = gethostbyname(gethostname());
         $this->arg['tcp-port'] = 9999;
         $this->arg['tcp-ip'] = '0.0.0.0';
         $this->arg['token'] = '';
@@ -111,6 +111,38 @@ class TournamentMatchTracker {
     }
 
     /**
+     * Check a json string (from the tcp buffer) for a match abort request.
+     * If request is valid, match will be aborted.
+     * @param string $json_string
+     * @return bool True if all required data was available and has been set.
+     */
+    private function checkJsonForMatchAbort($json_string) {
+        $o = json_decode($json_string);
+        if (true
+            && isset($o->token)
+            && isset($o->match_id)
+            && isset($o->abort_match)
+        ) {
+            if ($o->token !== $this->arg['token']) {
+                Log::warning('wrong token given in match abort data (' . $o->token . '), ignore the match abort');
+            } else if ($o->abort_match !== true) {
+                Log::warning('received a match abort request with abort_match field not set to true, ignore it');
+            } else {
+                $match = $this->getMatchById($o->match_id);
+                if ($match !== false) {
+                    Log::info('abort match (id ' . $o->match_id . ') on request');
+                    $match->abort();
+                    unset($this->matches[$o->match_id]);
+                } else {
+                    Log::info('abort match (id ' . $o->match_id . ') requested, but no match found with this id');
+                }
+            }
+            return true;
+        }
+        return false;
+    }
+
+    /**
      * Main program loop.
      *
      * Every loop it will check the tcp server for new incoming requests and create for every request a match object.
@@ -123,10 +155,12 @@ class TournamentMatchTracker {
             $buffers = $this->tcp_server->getAllBuffers();
             foreach ($buffers as $client => $buffer) {
                 $match_data = new MatchData();
-                if ($match_data->setFieldsFromJsonString($buffer) === true) {
+                if ($this->checkJsonForMatchAbort($buffer) === true) {
+                    $this->tcp_server->disconnectClient($client);
+                } else if ($match_data->setFieldsFromJsonString($buffer) === true) {
                     $this->tcp_server->disconnectClient($client);
                     if ($match_data->getToken() !== $this->arg['token']) {
-                        Log::warning('wrong token given in match data (' . $match_data->getToken() . '), ignore the match init');
+                        Log::warning('wrong token given in match init data (' . $match_data->getToken() . '), ignore the match init');
                     } else {
                         try {
                             Log::info('create new match with the following data: ' . $match_data->getJsonString());

@@ -34,14 +34,14 @@ class Match {
 
     private $allowed_commands = [
         'anytime' => ['help', 'fullhelp'],
-        self::MAP_ELECTION => ['map', 'veto'],
+        self::MAP_ELECTION => [], // will be set in the constructor
         self::MAP_CHANGE => [],
-        self::WARMUP => ['ready', 'unready'],
+        self::WARMUP => ['ready', 'rdy', 'unready'],
         self::KNIFE => [],
-        self::AFTER_KNIFE => ['stay', 'switch'],
+        self::AFTER_KNIFE => ['stay', 'switch', 'swap'],
         self::MATCH => ['pause'],
         self::END => [],
-        self::PAUSE => ['ready', 'unready']
+        self::PAUSE => ['ready', 'rdy', 'unready']
     ];
 
     /**
@@ -112,6 +112,7 @@ class Match {
         $this->rcon = new Rcon($match_data->getIp(), $match_data->getPort(), $match_data->getRcon(), $this);
 
         $this->map_election = new MapElection($match_data->getPickmode(), $match_data->getMapPool(), $this);
+        $this->allowed_commands[self::MAP_ELECTION] = $this->map_election->getAvailableCommands();
 
         $this->rcon('mp_logdetail 0');
         $this->rcon('sv_logecho 0');
@@ -282,7 +283,7 @@ class Match {
             $this->log('SAY | ' . $name . '<' . $team . '><' . $steam_id . '>: ' . $message);
         }
 
-        if ($message[0] !== '!') { // message is no command
+        if ($message[0] !== '!' && $message[0] !== '.') { // message is no command
             return;
         }
 
@@ -299,6 +300,7 @@ class Match {
 
         switch (strtolower($parts[0])) {
             case 'ready':
+            case 'rdy':
                 $this->commandReady($team);
                 break;
             case 'unready':
@@ -314,15 +316,19 @@ class Match {
                 $this->commandFullhelp();
                 break;
             case 'map':
+            case 'vote':
+            case 'pick':
                 $this->map_election->wish($team, $parts[1]);
                 break;
             case 'veto':
+            case 'ban':
                 $this->map_election->veto($team, $parts[1]);
                 break;
             case 'stay':
                 $this->commandStay($team);
                 break;
             case 'switch':
+            case 'swap':
                 $this->commandSwitch($team);
                 break;
             default:
@@ -383,18 +389,19 @@ class Match {
             'team2score' => $this->score['T']
         ]);
 
-        $this->disableUDPLogging();
+        $seconds_until_server_cleanup = 180;
 
-        Tasker::add(180, function() {
+        Tasker::add($seconds_until_server_cleanup, function() {
             $this->log('execute rcon_end commands');
             foreach ($this->match_data->getRconEnd() as $rcon_end) {
                 $this->rcon($rcon_end);
             }
+            $this->disableUDPLogging();
         });
 
         switch(strtolower($this->match_data->getMatchEnd())) {
             case 'kick':
-                Tasker::add(180, function() {
+                Tasker::add($seconds_until_server_cleanup, function() {
                     $command = '';
                     foreach (explode("\n", $this->rcon('status')) as $line) {
                         if (preg_match('~^# +(\\d+) +(\\d+) +"(.*)" +([STEAM_:0-9]+) +([0-9:]+) +([0-9]+) +([0-9]+) +(.+) +([0-9]+) +([0-9.:]+)$~', $line, $matches)) {
@@ -406,7 +413,7 @@ class Match {
                 });
                 break;
             case 'quit':
-                Tasker::add(180, function() {
+                Tasker::add($seconds_until_server_cleanup, function() {
                     $this->log('quit server');
                     $this->rcon('quit');
                 });

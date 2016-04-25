@@ -1,6 +1,7 @@
 # REQUIREMENTS
 * PHP > 5.4.0
 * PHP-JSON
+* PHP-OPENSSL
 * write access to own folder (for logging to `./tmt.log`)
 
 # START
@@ -18,13 +19,13 @@ If a specific argument is not available, it will default to:
 
 * `--udp-port`: 9999
 * `--udp-ip`: 0.0.0.0 (listen on all ips/devices)
-* `--udp-log-ip`: `getHostByName(getHostName())` (Not reliable!)
+* `--udp-log-ip`: `gethostbyname(gethostname())` (Not reliable!)
 * `--tcp-port`: 9999
 * `--tcp-ip`: 0.0.0.0 (listen on all ips/devices)
 * `--token`: "" (empty string)
 
-# INIT
-The following is an example how to init a match. It must send to the script using the tcp socket.
+# MATCH INIT
+The following is an example how to init a match. It must be send to the script using the tcp socket.
 
 ```
 {
@@ -71,21 +72,21 @@ Notes:
 * `map_pool`: array of strings
 * `pickmode`: (string) `default_map`, `agree`, `bo1`, `bo1random` or `bo1randomagree` (the last will offer both the !veto and the !map commands)
 * `match_end`: (string) `kick`, `quit` or `none`
-* `rcon_init`: array of strings, rcon commands will be executed once after the rcon connection is established
-* `rcon_config`: array of strings, rcon commands will be executed twice (before knife round and before match start)
-* `rcon_end`: array of strings, rcon commands will be executed three minutes after match end (right before match_end action)
+* `rcon_init`: array of strings, rcon commands will be executed once after the rcon connection is established, each entry must be shorter than 4000 chars
+* `rcon_config`: array of strings, rcon commands will be executed twice (before knife round and before match start), each entry must be shorter than 4000 chars
+* `rcon_end`: array of strings, rcon commands will be executed three minutes after match end (right before match_end action), each entry must be shorter than 4000 chars
 
 # REPORTS
 The tool will report events to the url (if given in the init data):
 
-* elected map
+* elected map (won't be sent if pickmode is `default_map`)
 ```
 $_POST['match_id'] = 1337;
 $_POST['type'] = 'map';
 $_POST['map'] = 'de_mirage';
 ```
 
-* match start
+* match start (when the knife round winner has chosen a side)
 ```
 $_POST['match_id'] = 1337;
 $_POST['type'] = 'start';
@@ -110,3 +111,34 @@ $_POST['team1score'] = 16;
 $_POST['team2id'] = 37;
 $_POST['team2score'] = 12;
 ```
+
+# MATCH ABORT
+The following is an example how to abort a match. It must be send to the script using the tcp socket.
+
+```
+{
+    "token": "somesecurity",
+    "match_id": 1337,
+    "abort_match": true
+}
+```
+
+Aborting the match means stopping the gameserver sending log data to the udp socket and deleting the internal match.
+
+# USER COMMANDS (INGAME)
+While beeing ingame on a tracked server the following commands are available.
+Keep in mind that a few commands are jus aliases and will do the same as other commands.
+* During the map election if pickmode is `agree`:
+    * !map, !vote, !pick
+* During the map election if pickmode is `bo1` or `bo1random`:
+    * !veto, !ban
+* During the map election if pickmode is `bo1randomagree`:
+    * !map, !vote, !pick, !veto, !ban
+* During warmup:
+    * !ready, !rdy
+* For the winning team after the knife round:
+    * !stay, !switch, !swap
+* During the match:
+    * !pause
+* While the match is paused:
+    * !ready, !rdy

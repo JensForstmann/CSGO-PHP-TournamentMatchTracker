@@ -49,7 +49,7 @@ class MapElection {
      */
     public function __construct($mode, $map_pool, $match) {
         $mode = strtoupper($mode);
-        $modes = [self::AGREE, self::BO1, self::BO1RANDOM];
+        $modes = [self::DEFAULT_MAP, self::AGREE, self::BO1, self::BO1RANDOM, self::BO1RANDOMAGREE];
         if (!in_array($mode, $modes)) {
             throw new \Exception('Map election mode ' . $mode . ' is not supported! Only the following modes are supported: ' . implode(', ' , $modes));
         }
@@ -60,6 +60,29 @@ class MapElection {
         $this->match = $match;
 
         $this->last_maps_random = count($this->map_pool) % 2 === 0 ? 2 : 3;
+
+        if ($mode == self::DEFAULT_MAP) {
+            $this->match->setMatchStatus(Match::WARMUP);
+        }
+    }
+
+    /**
+     * Returns an array with all available commands based on the map election pickmode.
+     * @return string[]
+     */
+    public function getAvailableCommands() {
+        if ($this->mode === self::DEFAULT_MAP) {
+            return [];
+        }
+        if ($this->mode === self::AGREE) {
+            return ['map', 'vote', 'pick'];
+        }
+        if ($this->mode === self::BO1 || $this->mode === self::BO1RANDOM) {
+            return ['veto', 'ban'];
+        }
+        if ($this->mode === self::BO1RANDOMAGREE) {
+            return ['map', 'vote', 'pick', 'veto', 'ban'];
+        }
     }
 
     /**
@@ -69,7 +92,7 @@ class MapElection {
      * @param string $map
      */
     public function wish($team, $map) {
-        if ($this->mode !== self::AGREE) {
+        if ($this->mode !== self::AGREE && $this->mode !== self::BO1RANDOMAGREE) {
             return;
         }
 
@@ -107,7 +130,7 @@ class MapElection {
      * @param string $map
      */
     public function veto($team, $map) {
-        if ($this->mode === self::AGREE) {
+        if ($this->mode !== self::BO1 && $this->mode !== self::BO1RANDOM && $this->mode !== self::BO1RANDOMAGREE) {
             return;
         }
 
@@ -124,6 +147,8 @@ class MapElection {
             return;
         }
 
+        $this->match->say($this->match->getTeamName($team) . ' VETOED ' . $map);
+
         // delete vetoed map from map pool
         unset($this->map_pool[$key]);
         $this->map_pool = array_values($this->map_pool);
@@ -139,7 +164,6 @@ class MapElection {
         if ($elected_map !== false) {
             $this->changeMap($elected_map);
         } else {
-            $this->match->say($this->match->getTeamName($team) . ' VETOED ' . $map);
             $this->sayNextTurn();
         }
     }
