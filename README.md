@@ -5,7 +5,7 @@
 * write access to own folder (for logging to `./tmt.log`)
 
 # START
-    ./tmt.php --udp-port 9999 --udp-ip 192.168.0.13 --udp-log-ip 109.110.111.112 --tcp-port 9999 --tcp-ip 192.168.0.13
+    ./tmt.php --udp-port 9999 --udp-ip 192.168.0.13 --udp-log-ip 109.110.111.112 --tcp-port 9999 --tcp-ip 192.168.0.13 --token somesecurity
 
 * `--udp-port`: Port (udp) that is used to receive logging data from gameserver.
 * `--udp-ip`: IP address for binding the udp socket. (May be a local IP behind router/firewall/NAT).
@@ -128,6 +128,7 @@ Aborting the match means stopping the gameserver sending log data to the udp soc
 # USER COMMANDS (INGAME)
 While beeing ingame on a tracked server the following commands are available.
 Keep in mind that a few commands are jus aliases and will do the same as other commands.
+Furthermore a command can be prefixed either by the `!` or the `.` character.
 * During the map election if pickmode is `agree`:
     * !map, !vote, !pick
 * During the map election if pickmode is `bo1` or `bo1random`:
