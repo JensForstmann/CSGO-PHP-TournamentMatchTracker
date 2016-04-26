@@ -103,10 +103,11 @@ class MapElection {
             return;
         }
 
-        if (!in_array($map, $this->map_pool)) {
+        // don't use $this->map_pool because if there already have been vetos, $this->map_pool is not full any more
+        if (!in_array($map, $this->match->getMatchData()->getMapPool())) {
             $this->map_wish[$team] = '';
             $this->match->say('ONLY THE FOLLOWING MAPS ARE IN THE MAP POOL:');
-            $this->match->say(implode(', ', $this->map_pool));
+            $this->match->say(implode(', ', $this->match->getMatchData()->getMapPool()));
             return;
         }
 
@@ -191,8 +192,11 @@ class MapElection {
         }, [$map]);
     }
 
+    /**
+     * Says messages depending on the current map vote status.
+     */
     public function sayPeriodicMessage() {
-        if ($this->mode === self::AGREE) {
+        if ($this->mode === self::AGREE || $this->mode === self::BO1RANDOMAGREE) {
             $this->match->say('WAITING FOR BOTH TEAMS TO AGREE ON A !map');
             foreach (['CT', 'T'] as $team) {
                 if ($this->map_wish[$team] !== '') {
@@ -200,20 +204,18 @@ class MapElection {
                     $this->match->say('AGREE WITH !map ' . $this->map_wish[$team]);
                 }
             }
-
-            return;
         }
-
-        switch ($this->mode) {
-            case self::BO1RANDOM:
-                $this->match->say('!veto MAPS. FROM THE LAST ' . $this->last_maps_random . ' MAPS A RANDOM ONE WILL BE PLAYED.');
-                break;
-            case self::BO1:
-                $this->match->say('!veto MAPS. THE LAST REMAINING MAP WILL BE PLAYED.');
-                break;
+        if ($this->mode === self::BO1RANDOMAGREE) {
+            $this->match->say('...ALTERNATIVELY...');
         }
-
-        $this->sayNextTurn();
+        if ($this->mode === self::BO1RANDOM || $this->mode === self::BO1RANDOMAGREE) {
+            $this->match->say('!veto MAPS. FROM THE LAST ' . $this->last_maps_random . ' MAPS A RANDOM ONE WILL BE PLAYED.');
+            $this->sayNextTurn();
+        }
+        if ($this->mode === self::BO1) {
+            $this->match->say('!veto MAPS. THE LAST REMAINING MAP WILL BE PLAYED.');
+            $this->sayNextTurn();
+        }
     }
 
     /**
