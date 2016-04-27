@@ -12,7 +12,7 @@
 * `--udp-log-ip`: IP address to that gameserver will send the logging data. (May be a public IP.)
 * `--tcp-port`: Port (tcp) that is used to receive init data for a match.
 * `--tcp-ip`: IP address for bindung the tcp socket. (May be a local IP behind router/firewall/NAT).
-* `--token`: String that have to be the same as in the json init data to accept the job.
+* `--token`: String that has to be the same as in the json init data to accept the job.
 
 # DEFAULTS
 If a specific argument is not available, it will default to:
@@ -68,7 +68,7 @@ The following is an example how to init a match. It must be send to the script u
 ```
 
 Notes:
-* `token`: (string) kind of password that have to match the command line parameter
+* `token`: (string) kind of password that has to match the command line parameter
 * `map_pool`: array of strings
 * `pickmode`: (string) `default_map`, `agree`, `bo1`, `bo1random` or `bo1randomagree` (the last will offer both the !veto and the !map commands)
 * `match_end`: (string) `kick`, `quit` or `none`
