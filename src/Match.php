@@ -151,13 +151,25 @@ class Match {
      * @param string $team 'CT' or 'T'
      * @return int
      */
-    private function getTeamId($team) {
+    public function getTeamId($team) {
         if ($this->switched_sides) {
             $team = $this->getOtherTeam($team);
         }
         switch ($team) {
             case 'CT': return $this->match_data->getTeam1Id();
             case 'T': return $this->match_data->getTeam2Id();
+        }
+    }
+
+    /**
+     * Returns the score of one team.
+     * @param string $team 'CT' or 'T'
+     * @return int
+     */
+    public function getScore($team) {
+        switch ($team) {
+            case 'CT': return $this->score['CT'];
+            case 'T': return $this->score['T'];
         }
     }
 
@@ -188,6 +200,14 @@ class Match {
      */
     public function getMatchData() {
         return $this->match_data;
+    }
+
+    /**
+     * Returns the map election object.
+     * @return MapElection
+     */
+    public function getMapElection() {
+        return $this->map_election;
     }
 
     /**

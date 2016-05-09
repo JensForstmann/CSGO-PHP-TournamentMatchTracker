@@ -114,7 +114,7 @@ class TournamentMatchTracker {
      * Check a json string (from the tcp buffer) for a match abort request.
      * If request is valid, match will be aborted.
      * @param string $json_string
-     * @return bool True if all required data was available and has been set.
+     * @return bool True if all required data was available and has been set so the tcp client can be disconnected.
      */
     private function checkJsonForMatchAbort($json_string) {
         $o = json_decode($json_string);
@@ -143,6 +143,62 @@ class TournamentMatchTracker {
     }
 
     /**
+     * Check a json string (from the tcp buffer) for a action request.
+     * If request is valid, do stuff (depending on the action).
+     * @param string $json_string
+     * @param string $client Just the 'ip:port' string of the client.
+     * @return bool True if all required data was available and action was executed so the tcp client can be disconnected.
+     */
+    private function checkJsonForActionRequest($json_string, $client) {
+        $o = json_decode($json_string);
+        if (true
+            && isset($o->token)
+            && isset($o->action)
+        ) {
+            if ($o->token !== $this->arg['token']) {
+                Log::warning('wrong token given in action request (' . $o->token . '), ignore the action request');
+            } else {
+                switch ($o->action) {
+                    case 'status_request':
+                        $status_request_json = $this->getStatusRequestJson();
+                        Log::debug('send this status_request json: ' . $status_request_json);
+                        $this->tcp_server->writeToSocket($client, $status_request_json);
+                        break;
+                    default:
+                        Log::warning('wrong action given in action request (' . $o->action . '), ignore the action request');
+                }
+            }
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * Returns a json encoded string with all status information for the status_request.
+     * @return string
+     */
+    private function getStatusRequestJson() {
+        $o['match_count'] = count($this->matches);
+        $o['matches'] = [];
+        foreach ($this->matches as $match) {
+            $mo['id'] = $match->getMatchData()->getMatchId();
+            $mo['status'] = $match->getMatchStatus();
+            $mo['map'] = $match->getMapElection()->getMatchMap();
+
+            $mo['team1']['id'] = $match->getTeamId('CT');
+            $mo['team1']['name'] = $match->getTeamName('CT');
+            $mo['team1']['score'] = $match->getScore('CT');
+
+            $mo['team2']['id'] = $match->getTeamId('T');
+            $mo['team2']['name'] = $match->getTeamName('T');
+            $mo['team2']['score'] = $match->getScore('T');
+            $o['matches'][] = $mo;
+        }
+
+        return (string) json_encode($o);
+    }
+
+    /**
      * Main program loop.
      *
      * Every loop it will check the tcp server for new incoming requests and create for every request a match object.
@@ -155,7 +211,9 @@ class TournamentMatchTracker {
             $buffers = $this->tcp_server->getAllBuffers();
             foreach ($buffers as $client => $buffer) {
                 $match_data = new MatchData();
-                if ($this->checkJsonForMatchAbort($buffer) === true) {
+                if ($this->checkJsonForActionRequest($buffer, $client) === true) {
+                    $this->tcp_server->disconnectClient($client);
+                } else if ($this->checkJsonForMatchAbort($buffer) === true) {
                     $this->tcp_server->disconnectClient($client);
                 } else if ($match_data->setFieldsFromJsonString($buffer) === true) {
                     $this->tcp_server->disconnectClient($client);

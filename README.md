@@ -125,6 +125,40 @@ The following is an example how to abort a match. It must be send to the script 
 
 Aborting the match means stopping the gameserver sending log data to the udp socket and deleting the internal match.
 
+# STATUS REQUEST
+```
+{
+    "token": "somesecurity",
+    "action": "status_request"
+}
+```
+
+This immediately sends back a json containing some status information (over the same tcp connection). Example:
+```
+{
+    "match_count": 1,
+    "matches": [
+        {
+            "id": 1337,
+            "status": "MATCH",
+            "map": "de_dust2",
+            "team1": {
+                "id": 37,
+                "name": "Cola",
+                "score": 2},
+            "team2": {
+                "id": 13,
+                "name": "Fanta",
+                "score": 0}
+        }
+    ]
+}
+```
+
+Notes:
+* `status`: (string) `MAP_ELECTION`, `MAP_CHANGE`, `WARMUP`, `KNIFE`, `AFTER_KNIFE`, `MATCH`, `END` or `PAUSE`
+* `map`: (string) the map on which the match will be played (empty string until map election process is over)
+
 # USER COMMANDS (INGAME)
 While beeing ingame on a tracked server the following commands are available.
 Keep in mind that a few commands are jus aliases and will do the same as other commands.

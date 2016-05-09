@@ -109,4 +109,29 @@ class TcpServer {
         unset($this->sockets[$client_ip_port]);
         unset($this->buffers[$client_ip_port]);
     }
+
+    /**
+     * Writes data to the socket.
+     * @param string $client_ip_port Just the 'ip:port' string of the client.
+     * @param string $data Data that will be written to the socket.
+     */
+    public function writeToSocket($client_ip_port, $data) {
+        if ($client_ip_port === $this->server_socket) {
+            Log::warning('writing to server socket is not allowed, abort');
+            return;
+        }
+
+        $max_errors = 10;
+        $client = $this->sockets[$client_ip_port];
+
+        for ($written = 0, $errors = 0; $written < strlen($data) && $errors < $max_errors; $written += $fwrite) {
+            $fwrite = @fwrite($client, substr($data, $written));
+            if ($fwrite === 0 || $fwrite === false) {
+                $errors++;
+                Log::warning('API TCP: writing to socket failed');
+            } else {
+                $errors = 0;
+            }
+        }
+    }
 }

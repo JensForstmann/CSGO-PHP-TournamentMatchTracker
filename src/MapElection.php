@@ -41,6 +41,12 @@ class MapElection {
     private $last_maps_random;
 
     /**
+     * On which map the match will be played.
+     * @var string
+     */
+    private $match_map = '';
+
+    /**
      * MapElection constructor.
      * @param string $mode
      * @param string[] $map_pool
@@ -62,6 +68,7 @@ class MapElection {
         $this->last_maps_random = count($this->map_pool) % 2 === 0 ? 2 : 3;
 
         if ($mode == self::DEFAULT_MAP) {
+            $this->match_map = $this->match->getMatchData()->getDefaultMap();
             $this->match->setMatchStatus(Match::WARMUP);
         }
     }
@@ -186,6 +193,8 @@ class MapElection {
 
         $this->match->setMatchStatus(Match::MAP_CHANGE);
 
+        $this->match_map = $map;
+
         Tasker::add(10, function ($map) {
             $this->match->rcon('changelevel ' . $map);
             $this->match->setMatchStatus(Match::WARMUP);
@@ -227,5 +236,13 @@ class MapElection {
         if ($this->next_veto_team !== '') {
             $this->match->say($this->match->getTeamPrint($this->next_veto_team) . ' MUST !veto NOW!');
         }
+    }
+
+    /**
+     * Returns the match map (the map the match will be played on).
+     * @return string
+     */
+    public function getMatchMap() {
+        return $this->match_map;
     }
 }
