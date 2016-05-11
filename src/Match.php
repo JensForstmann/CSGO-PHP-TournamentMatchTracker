@@ -99,6 +99,11 @@ class Match {
     private $udp_log_ip_port;
 
     /**
+     * @var Rcon
+     */
+    private $rcon;
+
+    /**
      * Constructs a match to observe and control it.
      * @param MatchData $match_data
      * @param string $udp_log_ip_port IP:port of the udp log receiver.
@@ -443,6 +448,10 @@ class Match {
             default:
                 $this->log('match end action is not supported:' . $this->match_data->getMatchEnd());
         }
+
+        Tasker::add($seconds_until_server_cleanup, function() {
+            $this->rcon->disconnect();
+        });
     }
 
     /**
@@ -451,6 +460,7 @@ class Match {
     public function abort() {
         $this->log('abort match');
         $this->disableUDPLogging();
+        $this->rcon->disconnect();
     }
 
     /**

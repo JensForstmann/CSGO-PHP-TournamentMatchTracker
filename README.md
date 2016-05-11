@@ -25,7 +25,7 @@ If a specific argument is not available, it will default to:
 * `--token`: "" (empty string)
 
 # MATCH INIT
-The following is an example how to init a match. It must be send to the script using the tcp socket.
+The following is an example how to init a match. It must be sent to the script using the tcp socket.
 
 ```
 {
@@ -170,10 +170,10 @@ Furthermore a command can be prefixed either by the `!` or the `.` character.
 * During the map election if pickmode is `bo1randomagree`:
     * !map, !vote, !pick, !veto, !ban
 * During warmup:
-    * !ready, !rdy
+    * !ready, !rdy, !unready
 * For the winning team after the knife round:
     * !stay, !switch, !swap
 * During the match:
     * !pause
 * While the match is paused:
-    * !ready, !rdy
+    * !ready, !rdy, !unready

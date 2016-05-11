@@ -87,6 +87,14 @@ class Rcon {
     }
 
     /**
+     * Closes the rcon connection.
+     */
+    public function disconnect() {
+        $this->match->log('close rcon connection');
+        fclose($this->fp);
+    }
+
+    /**
      * Authenticates with the password.
      * @throws \Exception
      */

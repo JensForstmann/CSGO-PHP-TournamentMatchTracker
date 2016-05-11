@@ -165,12 +165,19 @@ class MapElection {
         $elected_map = false;
         if ($this->mode === self::BO1 && count($this->map_pool) === 1) {
             $elected_map = $this->map_pool[0];
-        } else if ($this->mode === self::BO1RANDOM && count($this->map_pool) === $this->last_maps_random) {
+        } else if (($this->mode === self::BO1RANDOM || $this->mode === self::BO1RANDOMAGREE) && count($this->map_pool) === $this->last_maps_random) {
+            $this->match->say('FROM THESE MAPS A RANDOM ONE WILL BE DRAWN: ' . implode(', ', $this->map_pool));
             $elected_map = $this->map_pool[mt_rand(0, $this->last_maps_random - 1)];
         }
 
         if ($elected_map !== false) {
-            $this->changeMap($elected_map);
+            $this->match->setMatchStatus(Match::MAP_CHANGE); // change match status to avoid future !veto calls (because changeMap call is delayed here)
+            Tasker::add(5, function($elected_map) {
+                $this->match->say('THE MAP WILL BE ' . $elected_map);
+            }, [$elected_map]);
+            Tasker::add(10, function($elected_map) {
+                $this->changeMap($elected_map);
+            }, [$elected_map]);
         } else {
             $this->sayNextTurn();
         }
