@@ -11,7 +11,7 @@
 * `--udp-ip`: IP address for binding the udp socket. (May be a local IP behind router/firewall/NAT).
 * `--udp-log-ip`: IP address to that gameserver will send the logging data. (May be a public IP.)
 * `--tcp-port`: Port (tcp) that is used to receive init data for a match.
-* `--tcp-ip`: IP address for bindung the tcp socket. (May be a local IP behind router/firewall/NAT).
+* `--tcp-ip`: IP address for binding the tcp socket. (May be a local IP behind router/firewall/NAT).
 * `--token`: String that has to be the same as in the json init data to accept the job.
 
 # DEFAULTS
