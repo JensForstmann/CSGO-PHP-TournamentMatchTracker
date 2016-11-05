@@ -172,7 +172,7 @@ Furthermore a command can be prefixed either by the `!` or the `.` character.
 * During warmup:
     * !ready, !rdy, !unready
 * For the winning team after the knife round:
-    * !stay, !switch, !swap
+    * !stay, !switch, !swap, !ct, !t
 * During the match:
     * !pause
 * While the match is paused:

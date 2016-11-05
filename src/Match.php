@@ -38,7 +38,7 @@ class Match {
         self::MAP_CHANGE => [],
         self::WARMUP => ['ready', 'rdy', 'unready'],
         self::KNIFE => [],
-        self::AFTER_KNIFE => ['stay', 'switch', 'swap'],
+        self::AFTER_KNIFE => ['stay', 'switch', 'swap', 'ct', 't'],
         self::MATCH => ['pause'],
         self::END => [],
         self::PAUSE => ['ready', 'rdy', 'unready']
@@ -317,13 +317,14 @@ class Match {
             $parts[1] = '';
         }
 
+        $command = strtolower($parts[0]);
         $allowed_commands = array_merge($this->allowed_commands['anytime'], $this->allowed_commands[$this->match_status]);
-        if (!in_array($parts[0], $allowed_commands)) { // command is unkown or not allowed
+        if (!in_array($command, $allowed_commands)) { // command is unknown or not allowed
             $this->commandHelp();
             return;
         }
 
-        switch (strtolower($parts[0])) {
+        switch ($command) {
             case 'ready':
             case 'rdy':
                 $this->commandReady($team);
@@ -355,6 +356,10 @@ class Match {
             case 'switch':
             case 'swap':
                 $this->commandSwitch($team);
+                break;
+            case 'ct':
+            case 't':
+                $this->commandSideSelection($team, $command);
                 break;
             default:
                 $this->say('THIS COMMAND IS NOT IMPLEMENTED YET!');
@@ -587,6 +592,19 @@ class Match {
             $this->switchTeamInternals();
             $this->rcon('mp_swapteams');
             $this->startMatch();
+        }
+    }
+
+    /**
+     * Selects the side after knife round. Method calls (commandStay/commandSwitch) will check if $team === knife_winner.
+     * @param string $team The team which executes the command.
+     * @param string $command Either 'ct' or 't'. The team the knife winner wants to start with.
+     */
+    private function commandSideSelection($team, $command) {
+        if (strtolower($team) === strtolower($command)) {
+            $this->commandStay($team);
+        } else {
+            $this->commandSwitch($team);
         }
     }
 
