@@ -176,4 +176,4 @@ Furthermore a command can be prefixed either by the `!` or the `.` character.
 * During the match:
     * !pause
 * While the match is paused:
-    * !ready, !rdy, !unready
+    * !ready, !rdy, !unready, !unrdy
