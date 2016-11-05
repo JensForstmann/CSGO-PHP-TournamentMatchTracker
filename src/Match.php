@@ -36,7 +36,7 @@ class Match {
         'anytime' => ['help', 'fullhelp'],
         self::MAP_ELECTION => [], // will be set in the constructor
         self::MAP_CHANGE => [],
-        self::WARMUP => ['ready', 'rdy', 'unready'],
+        self::WARMUP => ['ready', 'rdy', 'unready', 'unrdy'],
         self::KNIFE => [],
         self::AFTER_KNIFE => ['stay', 'switch', 'swap', 'ct', 't'],
         self::MATCH => ['pause'],
@@ -66,13 +66,19 @@ class Match {
      * Max rounds to calculate halftime and match end.
      * @var int
      */
-    private $maxrounds = 30; // @todo read that from rcon after loading config
+    private $maxrounds = 30;
 
     /**
      * Max rounds in overtime to calculate halftime and match end.
      * @var int
      */
-    private $ot_maxrounds = 6; // @todo read that from rcon after loading config
+    private $ot_maxrounds = 6;
+
+    /**
+     * Is overtime enabled or is a draw possible?
+     * @var bool
+     */
+    private $ot_enabled = true;
 
     /**
      * Time of the last periodic message.
@@ -232,7 +238,7 @@ class Match {
      */
     public function sayPeriodicMessage() {
         // @todo: move this rcon to a better location?!
-        $this->rcon('mp_warmup_pausetimer 1');
+        $this->rcon('mp_warmup_pausetimer 1'); // infinite warmup
 
         $this->last_periodic_message = time();
 
@@ -256,7 +262,7 @@ class Match {
                 break;
             case self::AFTER_KNIFE:
                 $this->say($this->getTeamPrint($this->knife_winner) . ' WON THE KNIFE ROUND!');
-                $this->say('USE !stay OR !switch TO START THE MATCH!');
+                $this->say('USE !stay OR !switch OR !ct OR !t TO START THE MATCH!');
                 break;
             case self::MATCH:
                 break;
@@ -330,6 +336,7 @@ class Match {
                 $this->commandReady($team);
                 break;
             case 'unready':
+            case 'unrdy':
                 $this->commandUnready($team);
                 break;
             case 'pause':
@@ -563,7 +570,9 @@ class Match {
     private function commandFullhelp() {
         $commands = [];
         array_walk_recursive($this->allowed_commands, function($value, $key) use (&$commands) {
-            $commands[] = $value;
+            if (!in_array($value, $commands)) {
+                $commands[] = $value;
+            }
         });
         $this->say('ALL COMMANDS:');
         $this->say('!' . implode(', !', $commands));
@@ -614,9 +623,7 @@ class Match {
     private function startKniferound() {
         $this->log('start knife round');
         $this->match_status = self::KNIFE;
-        foreach ($this->match_data->getRconConfig() as $rcon_config) {
-            $this->rcon($rcon_config);
-        }
+        $this->loadConfig();
         $this->rcon('mp_warmup_end');
         $this->rcon('mp_restartgame 3');
         $this->say('--------------------------------------');
@@ -632,9 +639,7 @@ class Match {
         $this->match_status = self::MATCH;
         $this->score = ['CT' => 0, 'T' => 0];
         $this->rcon('mp_unpause_match');
-        foreach ($this->match_data->getRconConfig() as $rcon_config) {
-            $this->rcon($rcon_config);
-        }
+        $this->loadConfig();
         $this->rcon('mp_restartgame 10');
         $this->report([
             'match_id' => $this->match_data->getMatchId(),
@@ -647,6 +652,25 @@ class Match {
             $this->say('MATCH IS LIVE!');
             $this->say('MATCH IS LIVE!');
         });
+    }
+
+    /**
+     * Executes all rcon config entries from the match data.
+     * Sets match internal properties like maxrounds, etc.
+     */
+    public function loadConfig() {
+        $this->log('PRE_LOAD_CONFIG');
+        var_dump($this->maxrounds, $this->ot_maxrounds, $this->ot_enabled);
+
+        foreach ($this->match_data->getRconConfig() as $rcon_config) {
+            $this->rcon($rcon_config);
+        }
+        $this->maxrounds = $this->rcon->getMaxrounds();
+        $this->ot_maxrounds = $this->rcon->getOvertimeMaxrounds();
+        $this->ot_enabled = $this->rcon->getOvertimeEnable();
+
+        $this->log('POST_LOAD_CONFIG');
+        var_dump($this->maxrounds, $this->ot_maxrounds, $this->ot_enabled);
     }
 
     /**

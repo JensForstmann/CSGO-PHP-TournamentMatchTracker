@@ -154,6 +154,11 @@ class Rcon {
         return ['body' => $body, 'type' => $type, 'id' => $id];
     }
 
+    /**
+     * Executes a rcon command and returns its answer.
+     * @param string $command
+     * @return string Empty string in any error case. Answer in normal case.
+     */
     public function rcon($command) {
         for ($try = 10; $try > 0; $try--) {
             if ($this->send($command) === false) {
@@ -212,6 +217,38 @@ class Rcon {
         }
         $this->match->log('RCON: too much tries for getting answer from command ' . $command);
         $this->match->log('RCON: return empty string');
+        return '';
+    }
+
+    /**
+     * @return int mp_maxrounds
+     */
+    public function getMaxrounds() {
+        return (int) $this->getVar('mp_maxrounds');
+    }
+
+    /**
+     * @return int mp_overtime_maxrounds
+     */
+    public function getOvertimeMaxrounds() {
+        return (int) $this->getVar('mp_overtime_maxrounds');
+    }
+
+    public function getOvertimeEnable() {
+        return (bool) $this->getVar('mp_overtime_enable');
+    }
+
+    /**
+     * Returns a variable value.
+     * @param string $var
+     * @return string value of the variable or ''
+     */
+    public function getVar($var) {
+        $var = trim($var);
+        $answer = $this->rcon($var);
+        if (preg_match('/^"' . $var . '" = "(.*?)"/', $answer, $matches) === 1) {
+            return $matches[1];
+        }
         return '';
     }
 }
