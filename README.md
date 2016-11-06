@@ -92,7 +92,7 @@ $_POST['match_id'] = 1337;
 $_POST['type'] = 'start';
 ```
 
-* livescore
+* livescore (after every round)
 ```
 $_POST['match_id'] = 1337;
 $_POST['type'] = 'livescore';

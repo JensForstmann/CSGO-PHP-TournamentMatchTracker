@@ -731,12 +731,15 @@ class Match {
     }
 
     /**
-     * Returns true if the winner is fixed.
+     * Returns true if the winner is fixed. Or if it is a draw.
      * @param int $ct_score
      * @param int $t_score
      * @return bool
      */
     private function isMatchEnd($ct_score, $t_score) {
+        if ($this->ot_enabled === false && $ct_score + $t_score === $this->maxrounds) {
+            return true;
+        }
         $score_to_win = $this->maxrounds / 2 + $this->getOvertimeNumber($ct_score + $t_score) * $this->ot_maxrounds / 2 + 1;
         return $ct_score === (int)$score_to_win || $t_score === (int)$score_to_win;
     }
