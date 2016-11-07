@@ -114,9 +114,10 @@ class TournamentMatchTracker {
      * Check a json string (from the tcp buffer) for a match abort request.
      * If request is valid, match will be aborted.
      * @param string $json_string
+     * @param string $client Just the 'ip:port' string of the client.
      * @return bool True if all required data was available and has been set so the tcp client can be disconnected.
      */
-    private function checkJsonForMatchAbort($json_string) {
+    private function checkJsonForMatchAbort($json_string, $client) {
         $o = json_decode($json_string);
         if (true
             && isset($o->token)
@@ -125,8 +126,10 @@ class TournamentMatchTracker {
         ) {
             if ($o->token !== $this->arg['token']) {
                 Log::warning('wrong token given in match abort data (' . $o->token . '), ignore the match abort');
+                $this->tcp_server->writeToSocket($client, 'auth error');
             } else if ($o->abort_match !== true) {
                 Log::warning('received a match abort request with abort_match field not set to true, ignore it');
+                $this->tcp_server->writeToSocket($client, 'abort_match field not true');
             } else {
                 $match = $this->getMatchById($o->match_id);
                 if ($match !== false) {
@@ -157,6 +160,7 @@ class TournamentMatchTracker {
         ) {
             if ($o->token !== $this->arg['token']) {
                 Log::warning('wrong token given in action request (' . $o->token . '), ignore the action request');
+                $this->tcp_server->writeToSocket($client, 'auth error');
             } else {
                 switch ($o->action) {
                     case 'status_request':
@@ -166,6 +170,7 @@ class TournamentMatchTracker {
                         break;
                     default:
                         Log::warning('wrong action given in action request (' . $o->action . '), ignore the action request');
+                        $this->tcp_server->writeToSocket($client, 'action error');
                 }
             }
             return true;
@@ -213,11 +218,12 @@ class TournamentMatchTracker {
                 $match_data = new MatchData();
                 if ($this->checkJsonForActionRequest($buffer, $client) === true) {
                     $this->tcp_server->disconnectClient($client);
-                } else if ($this->checkJsonForMatchAbort($buffer) === true) {
+                } else if ($this->checkJsonForMatchAbort($buffer, $client) === true) {
                     $this->tcp_server->disconnectClient($client);
                 } else if ($match_data->setFieldsFromJsonString($buffer) === true) {
                     if ($match_data->getToken() !== $this->arg['token']) {
                         Log::warning('wrong token given in match init data (' . $match_data->getToken() . '), ignore the match init');
+                        $this->tcp_server->writeToSocket($client, 'auth error');
                     } else {
                         try {
                             Log::info('create new match with the following data: ' . $match_data->getJsonString());

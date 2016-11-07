@@ -40,7 +40,7 @@ class Match {
         self::AFTER_KNIFE => ['stay', 'switch', 'swap', 'ct', 't'],
         self::MATCH => ['pause'],
         self::END => [],
-        self::PAUSE => ['ready', 'rdy', 'unready']
+        self::PAUSE => ['ready', 'rdy', 'unready', 'unrdy']
     ];
 
     /**

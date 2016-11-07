@@ -170,7 +170,7 @@ Furthermore a command can be prefixed either by the `!` or the `.` character.
 * During the map election if pickmode is `bo1randomagree`:
     * !map, !vote, !pick, !veto, !ban
 * During warmup:
-    * !ready, !rdy, !unready
+    * !ready, !rdy, !unready, !unrdy
 * For the winning team after the knife round:
     * !stay, !switch, !swap, !ct, !t
 * During the match:
