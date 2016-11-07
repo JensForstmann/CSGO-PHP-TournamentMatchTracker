@@ -113,7 +113,7 @@ $_POST['team2score'] = 12;
 ```
 
 # MATCH ABORT
-The following is an example how to abort a match. It must be send to the script using the tcp socket.
+The following is an example how to abort a match. It must be sent to the script using the tcp socket.
 
 ```
 {

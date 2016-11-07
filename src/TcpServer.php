@@ -128,7 +128,7 @@ class TcpServer {
             $fwrite = @fwrite($client, substr($data, $written));
             if ($fwrite === 0 || $fwrite === false) {
                 $errors++;
-                Log::warning('API TCP: writing to socket failed');
+                Log::warning('writing to socket failed');
             } else {
                 $errors = 0;
             }

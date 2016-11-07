@@ -216,7 +216,6 @@ class TournamentMatchTracker {
                 } else if ($this->checkJsonForMatchAbort($buffer) === true) {
                     $this->tcp_server->disconnectClient($client);
                 } else if ($match_data->setFieldsFromJsonString($buffer) === true) {
-                    $this->tcp_server->disconnectClient($client);
                     if ($match_data->getToken() !== $this->arg['token']) {
                         Log::warning('wrong token given in match init data (' . $match_data->getToken() . '), ignore the match init');
                     } else {
@@ -244,8 +243,10 @@ class TournamentMatchTracker {
                             Log::info('now watching ' . count($this->matches) . ' matches');
                         } catch (\Exception $e) {
                             Log::warning('Error creating match: ' . $e->getMessage());
+                            $this->tcp_server->writeToSocket($client, 'Error creating match: ' . $e->getMessage());
                         }
                     }
+                    $this->tcp_server->disconnectClient($client);
                 }
             }
 
