@@ -5,7 +5,6 @@ namespace TMT;
 /**
  * Match class.
  * Connects to a gameserver, sets some settings, enables udp logging and observes a match.
- * @todo check if overtime is enabled or if a draw is possible
  */
 class Match {
     /**
@@ -270,7 +269,9 @@ class Match {
                 $this->say('MATCH FINISHED!');
                 $this->say('  ' . $this->getTeamPrint('CT') . ': ' . $this->score['CT']);
                 $this->say('  ' . $this->getTeamPrint('T') . ': ' . $this->score['T']);
-                $this->say('SCORE WILL BE SUBMITTED AUTOMATICALLY!');
+                if (!empty($this->match_data->getUrl())) {
+                    $this->say('SCORE WILL BE SUBMITTED AUTOMATICALLY!');
+                }
                 break;
         }
     }
@@ -400,7 +401,7 @@ class Match {
                 'team1score' => $this->score['CT'],
                 'team2id' => $this->getTeamId('T'),
                 'team2score' => $this->score['T']
-            ], false);
+            ], 1);
             if ($this->isHalftime($ct_score + $t_score)) {
                 $this->switchTeamInternals();
             } else if ($this->isMatchEnd($ct_score, $t_score)) {
@@ -659,18 +660,12 @@ class Match {
      * Sets match internal properties like maxrounds, etc.
      */
     public function loadConfig() {
-        $this->log('PRE_LOAD_CONFIG');
-        var_dump($this->maxrounds, $this->ot_maxrounds, $this->ot_enabled);
-
         foreach ($this->match_data->getRconConfig() as $rcon_config) {
             $this->rcon($rcon_config);
         }
         $this->maxrounds = $this->rcon->getMaxrounds();
         $this->ot_maxrounds = $this->rcon->getOvertimeMaxrounds();
         $this->ot_enabled = $this->rcon->getOvertimeEnable();
-
-        $this->log('POST_LOAD_CONFIG');
-        var_dump($this->maxrounds, $this->ot_maxrounds, $this->ot_enabled);
     }
 
     /**
@@ -758,11 +753,12 @@ class Match {
     /**
      * Posts data to the match data url (HTTP POST).
      * @param array $post_data
-     * @param bool $retry_on_error If true the report will be retried automatically after 180 seconds.
+     * @param int $max_tries How often to try to send the data.
+     * @param int $delay Delay in seconds between two tries.
      */
-    public function report(array $post_data, $retry_on_error = true) {
+    public function report(array $post_data, $max_tries = 1000, $delay = 180) {
         if (empty($this->match_data->getUrl())) {
-            $this->log('report url is empty, so no reporting at all', true);
+            //$this->log('report url is empty, so no reporting at all', true);
             return;
         }
 
@@ -780,9 +776,9 @@ class Match {
 
         if ($ret === false) {
             $this->log('report failed');
-            if ($retry_on_error) {
-                $this->log('retry report in 180 seconds');
-                Tasker::add(180, [$this, __METHOD__], [$post_data]); // @todo add a counter to limit the number of attempts, maybe increase time between two tries
+            if ($max_tries-- > 0) {
+                $this->log('retry report in ' . $delay . ' seconds');
+                Tasker::add($delay, [$this, __METHOD__], [$post_data, $max_tries, $delay]);
             }
         } else {
             $this->log('report returns: ' . trim($ret));
