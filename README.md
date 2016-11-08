@@ -1,3 +1,24 @@
+# TMT - TournamentMatchTracker
+TMT is a tool that tracks/watches/observes a Counter-Strike: Global Offensive match.
+
+It is a full command line backend application with no front end.
+It is designed to (re)act in an automation progress (tournament system, other website front end, ...).
+All orders must be sent to TMT via a tcp socket (see below for syntax).
+Output will be printed to STDOUT and into a log file.
+Additionally some calls via the tcp socket will send back some output.
+Furthermore some stuff will be reported via a website call to an url given within the match init data.
+
+# FEATURES
+* Standalone PHP command line application (no webserver is required).
+* One TMT instance is able to watch unlimited gameservers.
+* Ingame commands via chat.
+* Complete server management - no player needs the rcon password.
+* Map election process: Teams ban the maps ingame or agree on one.
+* Warmup on the match map.
+* Knife for side: Let the winner decide where to start.
+* Live reporting: Send match data to a webserver.
+* Overtime support
+
 # REQUIREMENTS
 * PHP > 5.4.0
 * PHP-JSON
@@ -5,8 +26,27 @@
 * write access to own folder (for logging to `./tmt.log`)
 
 # START
-    ./tmt.php --udp-port 9999 --udp-ip 192.168.0.13 --udp-log-ip 109.110.111.112 --tcp-port 9999 --tcp-ip 192.168.0.13 --token somesecurity
+#### Linux
+Using the defaults:
+```
+./tmt.php
+```
+Full example with all parameters:
+```
+./tmt.php --udp-port 9999 --udp-ip 192.168.0.13 --udp-log-ip 109.110.111.112 --tcp-port 9999 --tcp-ip 192.168.0.13 --token somesecurity
+```
+#### Windows
+Using the defaults:
+```
+X:\path\to\php\php.exe -f tmt.php
+```
+Full example with all parameters:
+```
+X:\path\to\php\php.exe -f tmt.php -- --udp-port 9999 --udp-ip 192.168.0.13 --udp-log-ip 109.110.111.112 --tcp-port 9999 --tcp-ip 192.168.0.13 --token somesecurity
+```
+Watch out for the additional `--` which seperates php.exe's command line options from the TMT's command line options.
 
+# COMMAND LINE OPTIONS
 * `--udp-port`: Port (udp) that is used to receive logging data from gameserver.
 * `--udp-ip`: IP address for binding the udp socket. (May be a local IP behind router/firewall/NAT).
 * `--udp-log-ip`: IP address to that gameserver will send the logging data. (May be a public IP.)
@@ -14,8 +54,7 @@
 * `--tcp-ip`: IP address for binding the tcp socket. (May be a local IP behind router/firewall/NAT).
 * `--token`: String that has to be the same as in the json init data to accept the job.
 
-# DEFAULTS
-If a specific argument is not available, it will default to:
+If a specific argument is not defined, it will default to:
 
 * `--udp-port`: 9999
 * `--udp-ip`: 0.0.0.0 (listen on all ips/devices)
@@ -69,9 +108,10 @@ The following is an example how to init a match. It must be sent to the script u
 
 Notes:
 * `token`: (string) kind of password that has to match the command line parameter
+* `match_id`: (int) must be unique within the TMT instance, otherwise it will first abort the other match before initializing the new match
 * `map_pool`: array of strings
 * `pickmode`: (string) `default_map`, `agree`, `bo1`, `bo1random` or `bo1randomagree` (the last will offer both the !veto and the !map commands)
-* `match_end`: (string) `kick`, `quit` or `none`
+* `match_end`: (string) `kick` (kick all players three minutes after match end), `quit` (server shutdown three minutes after match end) or `none`
 * `rcon_init`: array of strings, rcon commands will be executed once after the rcon connection is established, each entry must be shorter than 4000 chars
 * `rcon_config`: array of strings, rcon commands will be executed twice (before knife round and before match start), each entry must be shorter than 4000 chars
 * `rcon_end`: array of strings, rcon commands will be executed three minutes after match end (right before match_end action), each entry must be shorter than 4000 chars
@@ -161,7 +201,7 @@ Notes:
 
 # USER COMMANDS (INGAME)
 While beeing ingame on a tracked server the following commands are available.
-Keep in mind that a few commands are jus aliases and will do the same as other commands.
+Keep in mind that a few commands are just aliases and will do the same as other commands.
 Furthermore a command can be prefixed either by the `!` or the `.` character.
 * During the map election if pickmode is `agree`:
     * !map, !vote, !pick
