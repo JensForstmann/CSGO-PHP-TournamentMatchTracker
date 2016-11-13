@@ -40,7 +40,7 @@ class Match {
         self::AFTER_KNIFE => ['stay', 'switch', 'swap', 'ct', 't'],
         self::MATCH => ['pause'],
         self::END => [],
-        self::PAUSE => ['ready', 'rdy', 'unready', 'unrdy']
+        self::PAUSE => ['ready', 'rdy', 'unready', 'unrdy', 'unpause']
     ];
 
     /**
@@ -334,6 +334,7 @@ class Match {
         switch ($command) {
             case 'ready':
             case 'rdy':
+            case 'unpause':
                 $this->commandReady($team);
                 break;
             case 'unready':
