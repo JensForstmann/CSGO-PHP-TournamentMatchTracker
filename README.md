@@ -2,11 +2,30 @@
 TMT is a tool that tracks/watches/observes a Counter-Strike: Global Offensive match.
 
 It is a full command line backend application with no front end.
-It is designed to (re)act in an automation progress (tournament system, other website front end, ...).
-All orders must be sent to TMT via a tcp socket (see below for syntax).
-Output will be printed to STDOUT and into a log file.
-Additionally some calls via the tcp socket will send back some output.
-Furthermore some stuff will be reported via a website call to an url given within the match init data.
+It is designed to be integrated in some other kind of management system
+(content management system,tournament system, other website front end, ...).
+
+### How does it work?
+* Start:
+  * Open TCP socket (used for managing the TMT itself).
+  * Open UDP socket (used for receiving log data from the gameservers).
+* Endless loop:
+  * TCP part:
+    * Waiting for incoming tcp connections and read incoming data.
+    * Either drop the request if it is not valid (an error message will be returned) or perform it.
+      One of the following:
+      * Initialize a new match to watch.  
+        During the match initialization a (TCP) rcon connection will be setup. It will be used to tell the
+        gameserver to send its log data (round scores and chat messages) via udp to the TMT instance.
+      * Abort a match observation.
+      * Status request.
+  * UDP part:
+    * Check incoming udp packets to know what happened on the server:
+      * Round ends and current score.
+      * Chat messages.
+    * React to the log data:
+      * Send rcon commands.
+      * Post data to a webserver via HTTP.
 
 # FEATURES
 * Standalone PHP command line application (no webserver is required).
@@ -108,13 +127,19 @@ The following is an example how to init a match. It must be sent to the script u
 
 Notes:
 * `token`: (string) kind of password that has to match the command line parameter
-* `match_id`: (int) must be unique within the TMT instance, otherwise it will first abort the other match before initializing the new match
+* `match_id`: (int) must be unique within the TMT instance, otherwise it will first abort the other match before
+  initializing the new match
 * `map_pool`: array of strings
-* `pickmode`: (string) `default_map`, `agree`, `bo1`, `bo1random` or `bo1randomagree` (the last will offer both the !veto and the !map commands)
-* `match_end`: (string) `kick` (kick all players three minutes after match end), `quit` (server shutdown three minutes after match end) or `none`
-* `rcon_init`: array of strings, rcon commands will be executed once after the rcon connection is established, each entry must be shorter than 4000 chars
-* `rcon_config`: array of strings, rcon commands will be executed twice (before knife round and before match start), each entry must be shorter than 4000 chars
-* `rcon_end`: array of strings, rcon commands will be executed three minutes after match end (right before match_end action), each entry must be shorter than 4000 chars
+* `pickmode`: (string) `default_map`, `agree`, `bo1`, `bo1random` or `bo1randomagree` (the last will offer both
+  the !veto and the !map commands)
+* `match_end`: (string) `kick` (kick all players three minutes after match end), `quit` (server shutdown three
+  minutes after match end) or `none`
+* `rcon_init`: array of strings, rcon commands will be executed once after the rcon connection is established,
+  each entry must be shorter than 4000 chars
+* `rcon_config`: array of strings, rcon commands will be executed twice (before knife round and before match start),
+  each entry must be shorter than 4000 chars
+* `rcon_end`: array of strings, rcon commands will be executed three minutes after match end
+  (right before match_end action), each entry must be shorter than 4000 chars
 
 # REPORTS
 The tool will report events to the url (if given in the init data):
