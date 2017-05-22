@@ -107,6 +107,12 @@ class Match {
      * @var Rcon
      */
     private $rcon;
+    
+    /**
+     * Unix timestamp. Indicates the last contact time to the gameserver (both udp and tcp).
+     * @var int
+     */
+    private $last_contact = 0;
 
     /**
      * Constructs a match to observe and control it.
@@ -825,5 +831,19 @@ class Match {
         } else {
             // echo $packet . PHP_EOL;
         }
+    }
+    
+    /**
+     * Sets the last contact field to the current time.
+     */
+    public function setLastContact() {
+        $this->last_contact = time();
+    }
+    
+    /**
+     * Returns the time of the last contact to the gameserver.
+     */
+    public function getLastContact() {
+        return $this->last_contact;
     }
 }

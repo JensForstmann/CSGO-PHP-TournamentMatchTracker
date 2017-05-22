@@ -189,6 +189,8 @@ class TournamentMatchTracker {
             $mo['id'] = $match->getMatchData()->getMatchId();
             $mo['status'] = $match->getMatchStatus();
             $mo['map'] = $match->getMapElection()->getMatchMap();
+            $mo['lastcontact_timestamp'] = $match->getLastContact();
+            $mo['lastcontact_seconds'] = time() - $match->getLastContact();
 
             $mo['team1']['id'] = $match->getTeamId('CT');
             $mo['team1']['name'] = $match->getTeamName('CT');
@@ -266,6 +268,7 @@ class TournamentMatchTracker {
                     $match_log_packets = [];
                     if (isset($log_packets[$match_ip_port])) {
                         $match_log_packets = $log_packets[$match_ip_port];
+                        $match->setLastContact();
                     }
                     $match->doWork($match_log_packets);
                 } catch (\Exception $e) {

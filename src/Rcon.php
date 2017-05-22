@@ -196,6 +196,7 @@ class Rcon {
                 $this->match->log('RCON: return empty string');
                 return '';
             } else if ($packet['id'] === -20) {
+                $this->match->setLastContact();
                 return $answer;
             } else {
                 $answer .= $packet['body'];
