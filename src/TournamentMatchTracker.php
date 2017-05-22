@@ -268,6 +268,7 @@ class TournamentMatchTracker {
                     $match_log_packets = [];
                     if (isset($log_packets[$match_ip_port])) {
                         $match_log_packets = $log_packets[$match_ip_port];
+                        unset($log_packets[$match_ip_port]);
                         $match->setLastContact();
                     }
                     $match->doWork($match_log_packets);
@@ -278,6 +279,10 @@ class TournamentMatchTracker {
                     unset($this->matches[$match_id]);
                     Log::info('now watching ' . count($this->matches) . ' matches');
                 }
+            }
+            
+            foreach ($log_packets as $match_ip_port => $match_log_packets) {
+                Log::notice('Received udp log packets from unknown origin (' . $match_ip_port . '): ' . implode('; ', $match_log_packets));
             }
 
             // execute jobs
