@@ -131,7 +131,7 @@ class Rcon {
             if (is_array($packet)) {
                 return $packet;
             }
-            usleep(100 * 1000); // 100 ms
+            usleep(10 * 1000); // 10 ms
         }
         return false;
     }
@@ -160,39 +160,25 @@ class Rcon {
      * @return string Empty string in any error case. Answer in normal case.
      */
     public function rcon($command) {
-        for ($try = 10; $try > 0; $try--) {
-            if ($this->send($command) === false) {
-                try {
-                    $this->match->log('RCON: connection lost while sending command ' . $command);
-                    usleep(1000 * 1000); // 1 s
-                    $this->match->log('RCON: reconnect...');
-                    $this->connect();
-                    $this->match->log('RCON: relogin...');
-                    $this->login();
-                    if ($try > 1) {
-                        $this->match->log('RCON: resend command...');
-                    }
-                } catch (\Exception $e) {
-                    $this->match->log('Failed: ' . $e->getMessage());
-                }
-            } else {
-                $try = -1; // sending was successful
-            }
-        }
-
-        if ($try === 0) {
-            $this->match->log('RCON: too much tries for sending command ' . $command);
-            $this->match->log('RCON: return empty string');
-            return '';
-        }
-
         /**
-         * Multi packet response trick!
+         * Multi packet response trick! ($this->send('', -20))
          * Only if we receive a packet with id === -20 we know that the previous packet was the last one
          * of a (possibly) multi packet reponse.
          * @see https://developer.valvesoftware.com/wiki/Source_RCON_Protocol#Multiple-packet_Responses
          */
-        $this->send('', -20);
+        if ($this->send($command) === false || $this->send('', -20) === false) {
+            try {
+                $this->match->log('RCON: connection lost while sending command ' . $command);
+                $this->match->log('RCON: reconnect...');
+                $this->connect();
+                $this->match->log('RCON: relogin...');
+                $this->login();
+            } catch (\Exception $e) {
+                $this->match->log('Failed: ' . $e->getMessage());
+            }
+            $this->match->log('RCON: return empty string');
+            return '';
+        }
 
         $answer = '';
         for ($try = 10; $try > 0; $try--) {
@@ -204,11 +190,11 @@ class Rcon {
                     $this->connect();
                     $this->match->log('RCON: relogin...');
                     $this->login();
-                    $this->match->log('RCON: return empty string');
-                    return '';
                 } catch (\Exception $e) {
                     $this->match->log('Failed: ' . $e->getMessage());
                 }
+                $this->match->log('RCON: return empty string');
+                return '';
             } else if ($packet['id'] === -20) {
                 return $answer;
             } else {
