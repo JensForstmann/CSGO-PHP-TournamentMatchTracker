@@ -52,7 +52,7 @@ Using the defaults:
 ```
 Full example with all parameters:
 ```
-./tmt.php --udp-port 9999 --udp-ip 192.168.0.13 --udp-log-ip 109.110.111.112 --tcp-port 9999 --tcp-ip 192.168.0.13 --token somesecurity
+./tmt.php --udp-port 9999 --udp-ip 192.168.0.13 --udp-log-ip 109.110.111.112 --tcp-port 9999 --tcp-ip 192.168.0.13 --token somesecurity --say-prefix "[BOT] "
 ```
 #### Windows
 Using the defaults:
@@ -61,7 +61,7 @@ X:\path\to\php\php.exe -f tmt.php
 ```
 Full example with all parameters:
 ```
-X:\path\to\php\php.exe -f tmt.php -- --udp-port 9999 --udp-ip 192.168.0.13 --udp-log-ip 109.110.111.112 --tcp-port 9999 --tcp-ip 192.168.0.13 --token somesecurity
+X:\path\to\php\php.exe -f tmt.php -- --udp-port 9999 --udp-ip 192.168.0.13 --udp-log-ip 109.110.111.112 --tcp-port 9999 --tcp-ip 192.168.0.13 --token somesecurity --say-prefix "[BOT] "
 ```
 Watch out for the additional `--` which seperates php.exe's command line options from the TMT's command line options.
 
@@ -72,6 +72,7 @@ Watch out for the additional `--` which seperates php.exe's command line options
 * `--tcp-port`: Port (tcp) that is used to receive init data for a match.
 * `--tcp-ip`: IP address for binding the tcp socket. (May be a local IP behind router/firewall/NAT).
 * `--token`: String that has to be the same as in the json init data to accept the job.
+* `--say-prefix`: String that is prefixed in front of every say message.
 
 If a specific argument is not defined, it will default to:
 
@@ -81,6 +82,7 @@ If a specific argument is not defined, it will default to:
 * `--tcp-port`: 9999
 * `--tcp-ip`: 0.0.0.0 (listen on all ips/devices)
 * `--token`: "" (empty string)
+* `--say-prefix`: "[TMT] "
 
 # MATCH INIT
 The following is an example how to init a match. It must be sent to the script using the tcp socket.
@@ -207,6 +209,8 @@ This immediately sends back a json containing some status information (over the 
             "id": 1337,
             "status": "MATCH",
             "map": "de_dust2",
+            "lastcontact_timestamp": 1495449716,
+            "lastcontact_seconds": 31,
             "team1": {
                 "id": 37,
                 "name": "Cola",
@@ -223,6 +227,8 @@ This immediately sends back a json containing some status information (over the 
 Notes:
 * `status`: (string) `MAP_ELECTION`, `MAP_CHANGE`, `WARMUP`, `KNIFE`, `AFTER_KNIFE`, `MATCH`, `END` or `PAUSE`
 * `map`: (string) the map on which the match will be played (empty string until map election process is over)
+* `lastcontact_timestamp`: (int) the point of time (unix timestamp) with the last successful contact to the gameserver (either udp log packet or rcon command)
+* `lastcontact_seconds`: (int) same as previous, but in seconds (`time() - lastcontact_timestamp`)
 
 # USER COMMANDS (INGAME)
 While beeing ingame on a tracked server the following commands are available.

@@ -38,6 +38,7 @@ class TournamentMatchTracker {
         $this->arg['tcp-port'] = 9999;
         $this->arg['tcp-ip'] = '0.0.0.0';
         $this->arg['token'] = '';
+        $this->arg['say-prefix'] = '[TMT] ';
 
         $this->parseCommandLineParameters();
 
@@ -48,6 +49,7 @@ class TournamentMatchTracker {
         Log::info('  --tcp-port ' . $this->arg['tcp-port']);
         Log::info('  --tcp-ip ' . $this->arg['tcp-ip']);
         Log::info('  --token ' . $this->arg['token']);
+        Log::info('  --say-prefix ' . $this->arg['say-prefix']);
 
         try {
             Log::info('starting tcp server...');
@@ -246,7 +248,7 @@ class TournamentMatchTracker {
                                 unset($this->matches[$match_by_ip_port->getMatchData()->getMatchId()]);
                             }
 
-                            $this->matches[$match_id] = new Match($match_data, $this->arg['udp-log-ip'] . ':' . $this->arg['udp-port']);
+                            $this->matches[$match_id] = new Match($match_data, $this->arg['udp-log-ip'] . ':' . $this->arg['udp-port'], $this->arg['say-prefix']);
 
                             Log::info('now watching ' . count($this->matches) . ' matches');
                         } catch (\Exception $e) {

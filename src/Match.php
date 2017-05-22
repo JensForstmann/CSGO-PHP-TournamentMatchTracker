@@ -113,17 +113,26 @@ class Match {
      * @var int
      */
     private $last_contact = 0;
+    
+    /**
+     * Prefix in front of every say-rcon.
+     * @var string 
+     */
+    private $say_prefix = '';
 
     /**
      * Constructs a match to observe and control it.
      * @param MatchData $match_data
      * @param string $udp_log_ip_port IP:port of the udp log receiver.
+     * @param string $say_prefix Prefix in front of every say-rcon.
      * @throws \Exception
      */
-    public function __construct($match_data, $udp_log_ip_port) {
+    public function __construct($match_data, $udp_log_ip_port, $say_prefix) {
         $this->match_data = $match_data;
 
         $this->udp_log_ip_port = $udp_log_ip_port;
+
+        $this->say_prefix = $say_prefix;
 
         $this->rcon = new Rcon($match_data->getIp(), $match_data->getPort(), $match_data->getRcon(), $this);
 
@@ -680,7 +689,7 @@ class Match {
      * @param string $message
      */
     public function say($message) {
-        $this->rcon('say [BL-BOT] ' . str_replace(';', '', $message));
+        $this->rcon('say ' . $this->say_prefix . str_replace(';', '', $message));
     }
 
     /**
