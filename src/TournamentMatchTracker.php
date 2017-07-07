@@ -190,7 +190,7 @@ class TournamentMatchTracker {
         foreach ($this->matches as $match) {
             $mo['id'] = $match->getMatchData()->getMatchId();
             $mo['status'] = $match->getMatchStatus();
-            $mo['map'] = $match->getMapElection()->getMatchMap();
+            $mo['map'] = $match->getMapElection()->getMatchMaps();
             $mo['lastcontact_timestamp'] = $match->getLastContact();
             $mo['lastcontact_seconds'] = time() - $match->getLastContact();
 
