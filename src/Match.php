@@ -23,6 +23,7 @@ class Match {
      */
     private $match_status = self::MAP_ELECTION;
     const MAP_ELECTION = 'MAP_ELECTION'; // Important: Names and values of constants must be the same for defined() method
+    const AFTER_MAP_ELECTION = 'AFTER_MAP_ELECTION';
     const MAP_CHANGE = 'MAP_CHANGE';
     const WARMUP = 'WARMUP';
     const KNIFE = 'KNIFE';
@@ -34,6 +35,7 @@ class Match {
     private $allowed_commands = [
         'anytime' => ['help', 'fullhelp'],
         self::MAP_ELECTION => [], // will be set in the constructor
+        self::AFTER_MAP_ELECTION => [],
         self::MAP_CHANGE => [],
         self::WARMUP => ['ready', 'rdy', 'unready', 'unrdy'],
         self::KNIFE => [],
@@ -50,10 +52,38 @@ class Match {
     private $ready_status = ['CT' => false, 'T' => false];
 
     /**
-     * Current score.
+     * Current map score.
      * @var int[]
      */
     private $score = ['CT' => 0, 'T' => 0];
+
+    /**
+     * Overall match score.
+     *
+     * $this->overall_score = [
+     *      'team1' => 1,
+     *      'team2' => 0,
+     *      'maps' => [
+     *          [   'map' => 'de_dust2',
+     *              'team1' => 16,
+     *              'team2' => 10,
+     *              'finished' => true
+     *          ], [
+     *              'map' => 'de_overpass',
+     *              'team1' => 5,
+     *              'team2' => 12,
+     *              'finished' => false
+     *          ]
+     *      ]
+     * ]
+     * @var array[]
+     */
+    private $overall_score = [];
+
+    /**
+     * @var int
+     */
+    private $current_map = 0;
 
     /**
      * Winning team of the knife round.
@@ -136,7 +166,7 @@ class Match {
 
         $this->rcon = new Rcon($match_data->getIp(), $match_data->getPort(), $match_data->getRcon(), $this);
 
-        $this->map_election = new MapElection($match_data->getPickmode(), $match_data->getMapPool(), $this);
+        $this->map_election = new MapElection($this);
         $this->allowed_commands[self::MAP_ELECTION] = $this->map_election->getAvailableCommands();
 
         $this->rcon('mp_logdetail 0');
@@ -213,10 +243,14 @@ class Match {
      */
     public function setMatchStatus($match_status) {
         if (!defined('self::' . $match_status)) {
-            Log::error($match_status . ' is no supported match status, set it to ' . self::WARMUP . ' instead');
+            $this->log($match_status . ' is no supported match status, set it to ' . self::WARMUP . ' instead', false, true);
             $match_status = self::WARMUP;
         }
         $this->match_status = $match_status;
+
+        if ($this->match_status === self::AFTER_MAP_ELECTION) {
+            $this->changeMap($this->map_election->getMatchMaps()[0]);
+        }
     }
 
     /**
@@ -366,13 +400,13 @@ class Match {
                 $this->commandFullhelp();
                 break;
             case 'map':
-            case 'vote':
-            case 'pick':
-                $this->map_election->wish($team, $parts[1]);
+                $this->map_election->commandMap($team, $parts[1]);
                 break;
-            case 'veto':
+            case 'pick':
+                $this->map_election->commandPick($team, $parts[1]);
+                break;
             case 'ban':
-                $this->map_election->veto($team, $parts[1]);
+                $this->map_election->commandBan($team, $parts[1]);
                 break;
             case 'stay':
                 $this->commandStay($team);
@@ -430,6 +464,7 @@ class Match {
      * Ends the match. Call the report method to transfer the result. Do some cleaning stuff.
      */
     private function endMatch() {
+        // @todo overall match/map end handling -> change map, etc.
         $this->log('match end');
         $this->match_status = self::END;
         $this->sayPeriodicMessage();
@@ -481,6 +516,23 @@ class Match {
         Tasker::add($seconds_until_server_cleanup, function() {
             $this->rcon->disconnect();
         });
+    }
+
+    /**
+     * Changes the map.
+     * @param string $map
+     */
+    private function changeMap($map) {
+        $this->log('change map to ' . $map);
+
+        $this->say('MAP WILL BE CHANGED TO ' . $map . ' IN 10 SECONDS');
+
+        $this->match_status = self::MAP_CHANGE;
+
+        Tasker::add(10, function ($map) {
+            $this->rcon('changelevel ' . $map);
+            $this->match_status = self::WARMUP;
+        }, [$map]);
     }
 
     /**
@@ -709,10 +761,14 @@ class Match {
      * Writes something into the logfile, together with the match id.
      * @param string $message
      * @param bool $debug
+     * @param bool $error
      */
-    public function log($message, $debug = false) {
+    public function log($message, $debug = false, $error = false) {
         $message = 'MATCH ' . $this->match_data->getMatchId() . ' | ' . $message;
-        if ($debug === true) {
+
+        if ($error === true) {
+            Log::error($message);
+        } else if ($debug === true) {
             Log::debug($message);
         } else {
             Log::info($message);
@@ -720,7 +776,7 @@ class Match {
     }
 
     /**
-     * Method to switch internal fields like team names, score and map wish status.
+     * Method to switch internal fields like score and ready status.
      */
     private function switchTeamInternals() {
         $this->log('switch teams');

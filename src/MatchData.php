@@ -66,6 +66,11 @@ class MatchData {
     /**
      * @var string
      */
+    private $best_of_x_sequence;
+
+    /**
+     * @var string
+     */
     private $url;
 
     /**
@@ -111,6 +116,7 @@ class MatchData {
             && isset($o->port)
             && isset($o->rcon)
             && isset($o->pickmode)
+            && isset($o->best_of_x_sequence)
             && isset($o->url)
             && isset($o->match_end)
             && isset($o->rcon_init) && is_array($o->rcon_init)
@@ -129,6 +135,7 @@ class MatchData {
             $this->port = $o->port;
             $this->rcon = $o->rcon;
             $this->pickmode = $o->pickmode;
+            $this->best_of_x_sequence = $o->best_of_x_sequence;
             $this->url = $o->url;
             $this->match_end = $o->match_end;
             $this->rcon_init = $o->rcon_init;
@@ -224,6 +231,13 @@ class MatchData {
      */
     public function getPickmode() {
         return $this->pickmode;
+    }
+
+    /**
+     * @return string
+     */
+    public function getBestOfXSequence() {
+        return $this->best_of_x_sequence;
     }
 
     /**
