@@ -109,7 +109,8 @@ The following is an example how to init a match. It must be sent to the script u
     "ip": "10.22.33.44",
     "port": 27500,
     "rcon": "rcon_password",
-    "pickmode": "bo1random",
+    "pickmode": "best_of_x",
+    "best_of_x_sequence": "",
     "url": "https://www.example.org/api/csgo.php?token=abcdefg",
     "match_end": "kick",
     "rcon_init": [
@@ -132,8 +133,8 @@ Notes:
 * `match_id`: (int) must be unique within the TMT instance, otherwise it will first abort the other match before
   initializing the new match
 * `map_pool`: array of strings
-* `pickmode`: (string) `default_map`, `agree`, `bo1`, `bo1random` or `bo1randomagree` (the last will offer both
-  the !veto and the !map commands)
+* `pickmode`: (string) `default_map`, `agree`, `best_of_x` (see pickmode chapter below)
+* `best_of_x_sequence`: (string) empty string for `agree` and `default_map` pickmode, combination of `b` (ban), `p` (pick) and `r` (random) for `best_of_x` pickmode, see pickmode chapter below
 * `match_end`: (string) `kick` (kick all players three minutes after match end), `quit` (server shutdown three
   minutes after match end) or `none`
 * `rcon_init`: array of strings, rcon commands will be executed once after the rcon connection is established,
@@ -142,6 +143,17 @@ Notes:
   each entry must be shorter than 4000 chars
 * `rcon_end`: array of strings, rcon commands will be executed three minutes after match end
   (right before match_end action), each entry must be shorter than 4000 chars
+
+# PICKMODE
+With `default_map` the map election process is skipped and the default map will be played.
+
+With `agree` both teams must agree on one map out of the map pool with the `!map` command (e.g. `!map de_dust2`).
+
+## Best of X
+
+The pickmode `best_of_x` offers a highly flexible and customizable way for multi-map matches.
+
+@todo TODO doc this shit
 
 # REPORTS
 The tool will report events to the url (if given in the init data):
@@ -235,16 +247,14 @@ While beeing ingame on a tracked server the following commands are available.
 Keep in mind that a few commands are just aliases and will do the same as other commands.
 Furthermore a command can be prefixed either by the `!` or the `.` character.
 * During the map election if pickmode is `agree`:
-    * !map, !vote, !pick
-* During the map election if pickmode is `bo1` or `bo1random`:
-    * !veto, !ban
-* During the map election if pickmode is `bo1randomagree`:
-    * !map, !vote, !pick, !veto, !ban
+    * `!map`
+* During the map election if pickmode is `best_of_x`:
+    * `!ban`, `!pick`
 * During warmup:
-    * !ready, !rdy, !unready, !unrdy
+    * `!ready`, `!rdy`, `!unready`, `!unrdy`
 * For the winning team after the knife round:
-    * !stay, !switch, !swap, !ct, !t
+    * `!stay`, `!switch`, `!swap`, `!ct`, `!t`
 * During the match:
-    * !pause
+    * `!pause`
 * While the match is paused:
-    * !ready, !rdy, !unready, !unrdy, !unpause
+    * `!ready`, `!rdy`, `!unready`, `!unrdy`, `!unpause`

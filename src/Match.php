@@ -61,17 +61,19 @@ class Match {
      * Overall match score.
      *
      * $this->overall_score = [
-     *      'team1' => 1,
-     *      'team2' => 0,
+     *      'team1id' => 13,
+     *      'team1mapwins' => 1,
+     *      'team2id' => 37,
+     *      'team2mapwins' => 0,
      *      'maps' => [
      *          [   'map' => 'de_dust2',
-     *              'team1' => 16,
-     *              'team2' => 10,
+     *              'team1score' => 16,
+     *              'team2score' => 10,
      *              'finished' => true
      *          ], [
      *              'map' => 'de_overpass',
-     *              'team1' => 5,
-     *              'team2' => 12,
+     *              'team1score' => 5,
+     *              'team2score' => 12,
      *              'finished' => false
      *          ]
      *      ]
