@@ -91,26 +91,41 @@ The following is an example how to init a match. It must be sent to the script u
 {
     "token": "somesecurity",
     "map_pool": [
-            "de_dust2",
-            "de_train",
-            "de_overpass",
-            "de_inferno",
-            "de_cache",
-            "de_mirage",
-            "de_cbble"],
+        "de_dust2",
+        "de_train",
+        "de_overpass",
+        "de_inferno",
+        "de_cache",
+        "de_mirage",
+        "de_cbble"
+    ],
     "default_map": "de_dust2",
     "match_id": 1337,
     "team1": {
-            "id": 13,
-            "name": "Team NixMacher"},
+        "id": 13,
+        "name": "Team NixMacher"
+    },
     "team2": {
-            "id": 37,
-            "name": "Bobs Bau-Verein"},
+        "id": 37,
+        "name": "Bobs Bau-Verein"},
     "ip": "10.22.33.44",
     "port": 27500,
     "rcon": "rcon_password",
-    "pickmode": "best_of_x",
-    "best_of_x_sequence": "",
+    "election_process": [
+        {
+            mode: "pick",
+            who: "team1",
+            side: "team2"
+        },{
+            mode: "pick",
+            who: "team2",
+            side: "team1"
+        },{
+            mode: "pick",
+            who: "random",
+            side: "knife"
+        }
+    ],
     "url": "https://www.example.org/api/csgo.php?token=abcdefg",
     "match_end": "kick",
     "rcon_init": [
@@ -133,8 +148,7 @@ Notes:
 * `match_id`: (int) must be unique within the TMT instance, otherwise it will first abort the other match before
   initializing the new match
 * `map_pool`: array of strings
-* `pickmode`: (string) `default_map`, `agree`, `best_of_x` (see pickmode chapter below)
-* `best_of_x_sequence`: (string) empty string for `agree` and `default_map` pickmode, combination of `b` (ban), `p` (pick) and `r` (random) for `best_of_x` pickmode, see pickmode chapter below
+* `election_process`: (array of objects) (see election process chapter below)
 * `match_end`: (string) `kick` (kick all players three minutes after match end), `quit` (server shutdown three
   minutes after match end) or `none`
 * `rcon_init`: array of strings, rcon commands will be executed once after the rcon connection is established,
@@ -144,16 +158,125 @@ Notes:
 * `rcon_end`: array of strings, rcon commands will be executed three minutes after match end
   (right before match_end action), each entry must be shorter than 4000 chars
 
-# PICKMODE
-With `default_map` the map election process is skipped and the default map will be played.
+# ELECTION PROCESS
+The `election_process` field in the match init data contains an array of object of the following schema:
+```
+    ...
+    election_process: [
+        {
+            map_mode: "ban|random_ban|pick|random_pick|agree|fixed",
+            map_fixed: "<map>",
+            map_who: "team1|team2|team_x|team_y",
+            side_mode: "select|random|knife|fixed",
+            side_fixed: "team1_ct|team1_t|team2_ct|team2_t|team_x_ct|team_y_t|picker_ct|picker_t",
+            side_who: "team1|team2|team_x|team_y"
+        },{
+            ...
+        }
+    ],
+    ...
+```
 
-With `agree` both teams must agree on one map out of the map pool with the `!map` command (e.g. `!map de_dust2`).
+Notes:
+* `map_mode`
+  * `ban`: A map will be banned.
+  * `random_ban`: A random map will be banned.
+  * `pick`: A map will be picked.
+  * `random_pick`: A random map will be picked.
+  * `agree`: Both teams have to agree on one map.
+  * `fixed`: A fixed map will be played.
+* `map_fixed`: Required if `map_mode` is `fixed`. The map that will be played if `mode` is `fixed`.
+* `who`: Required if `map_mode` is `ban` or `pick`.
+  * `team1`: The first team must ban/pick.
+  * `team2`: The second team must ban/pick.
+  * `team_x`: Team x must ban/pick.
+  * `team_y`: Team y must ban/pick.
+* `side`: Required if `map_mode` is `pick`, `random_pick`, `agree` or `fix`.
+  * `team1`: The first team selects side.
+  * `team2`: The second team selects side.
+  * `team_x`: Team x selects side.
+  * `team_y`: Team y selects side.
+  * `random`: Randomly select sides.
+  * `knife`: A knife round let the winner choose side.
+  * `picker_t`: Picker team starts as T. (Only with `map_mode: "pick"`!)
+  * `picker_ct`: Picker team starts as CT. (Only with `map_mode: "pick"`!)
 
-## Best of X
+A few of these objects will form the complete match and is fully customizable.
 
-The pickmode `best_of_x` offers a highly flexible and customizable way for multi-map matches.
+Keep in mind, that your map pool must contain enough maps to fulfill the election process.
+(Example: If you have two bans, four picks and one agree you need at least seven maps in the map pool.)
 
-@todo TODO doc this shit
+### Team x? Team y?
+Team x and y are assigned to team 1 and 2 after the first usage. This allows that both teams are able to
+ban/pick first. After the first action with either team_x or team_y the team is fixed.
+
+This allows to ensure that the turns are alternating between the two teams, but allows also for a
+first comes first serves principle.
+
+## Examples
+
+### BO3 (ban, ban, pick, pick, random_pick)
+```
+...
+    election_process: [
+        {
+            mode: "ban",
+            who: "team1"
+        },{
+            mode: "ban",
+            who: "team2"
+        },{
+            mode: "pick",
+            who: "team1",
+            side: "team2"
+        },{
+            mode: "pick",
+            who: "team2",
+            side: "team1"
+        },{
+            mode: "random_pick",
+            side: "knife"
+        }
+    ]
+...
+```
+
+### BO1 (ban, ban, ban, ban, random_pick)
+Alternating bans, both teams can start to ban, random map pick, random side:
+```
+...
+    election_process: [
+        {
+            mode: "ban",
+            who: "team_x"
+        },{
+            mode: "ban",
+            who: "team_y"
+        },{
+            mode: "ban",
+            who: "team_x"
+        },{
+            mode: "ban",
+            who: "team_y"
+        },{
+            mode: "random_pick",
+            side: "random"
+        }
+    ]
+...
+```
+
+### BO2 (ban, ban, pick, pick)
+```
+```
+
+### One map random
+```
+```
+
+### One map agree
+```
+```
 
 # REPORTS
 The tool will report events to the url (if given in the init data):
