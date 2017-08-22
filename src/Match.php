@@ -443,7 +443,7 @@ class Match {
             'team2score' => $this->score['T']
         ]);
 
-        $seconds_until_server_cleanup = 180;
+        $seconds_until_server_cleanup = 20;
 
         Tasker::add($seconds_until_server_cleanup, function() {
             $this->log('execute rcon_end commands');
@@ -656,7 +656,6 @@ class Match {
         $this->match_status = self::MATCH;
         $this->score = ['CT' => 0, 'T' => 0];
         $this->rcon('mp_unpause_match');
-        $this->loadConfig();
         $this->rcon('mp_restartgame 10');
         $this->report([
             'match_id' => $this->match_data->getMatchId(),

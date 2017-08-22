@@ -134,13 +134,12 @@ Notes:
 * `map_pool`: array of strings
 * `pickmode`: (string) `default_map`, `agree`, `bo1`, `bo1random` or `bo1randomagree` (the last will offer both
   the !veto and the !map commands)
-* `match_end`: (string) `kick` (kick all players three minutes after match end), `quit` (server shutdown three
-  minutes after match end) or `none`
+* `match_end`: (string) `kick` (kick all players 20 seconds after match end), `quit` (server shutdown 20 seconds after match end) or `none`
 * `rcon_init`: array of strings, rcon commands will be executed once after the rcon connection is established,
   each entry must be shorter than 4000 chars
 * `rcon_config`: array of strings, rcon commands will be executed twice (before knife round and before match start),
   each entry must be shorter than 4000 chars
-* `rcon_end`: array of strings, rcon commands will be executed three minutes after match end
+* `rcon_end`: array of strings, rcon commands will be executed 20 seconds after match end
   (right before match_end action), each entry must be shorter than 4000 chars
 
 # REPORTS
