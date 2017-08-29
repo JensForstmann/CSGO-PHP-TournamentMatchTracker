@@ -443,6 +443,8 @@ class Match {
             'team2score' => $this->score['T']
         ]);
 
+        $this->disableUDPLogging();
+
         $seconds_until_server_cleanup = 20;
 
         Tasker::add($seconds_until_server_cleanup, function() {
@@ -450,7 +452,6 @@ class Match {
             foreach ($this->match_data->getRconEnd() as $rcon_end) {
                 $this->rcon($rcon_end);
             }
-            $this->disableUDPLogging();
         });
 
         switch(strtolower($this->match_data->getMatchEnd())) {
@@ -679,8 +680,11 @@ class Match {
             $this->rcon($rcon_config);
         }
         $this->maxrounds = $this->rcon->getMaxrounds();
+        $this->log('set maxrounds to ' . $this->maxrounds, true);
         $this->ot_maxrounds = $this->rcon->getOvertimeMaxrounds();
+        $this->log('set ot_maxrounds to ' . $this->ot_maxrounds, true);
         $this->ot_enabled = $this->rcon->getOvertimeEnable();
+        $this->log('set ot_enabled to ' . $this->ot_enabled, true);
     }
 
     /**
@@ -762,6 +766,9 @@ class Match {
      * @return int
      */
     private function getOvertimeNumber($rounds_played) {
+        if ($this->ot_maxrounds <= 0 || $this->ot_enabled === false) {
+            return 0;
+        }
         return max(0, ceil(($rounds_played - $this->maxrounds) / $this->ot_maxrounds));
     }
 
