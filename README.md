@@ -1,3 +1,9 @@
+# ARCHIVED - ARCHIVED - ARCHIVED
+
+This repo has been archived in favor of [TMT2](https://github.com/JensForstmann/tmt2).
+
+---
+
 # TMT - TournamentMatchTracker
 TMT is a tool that tracks/watches/observes a Counter-Strike: Global Offensive match.
 
